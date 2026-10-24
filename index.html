@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolicyGuard - Insurance Policy Management & Renewals</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+    <!-- AUTHENTICATION SCREEN (Shown when logged out) -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-sky-900 p-4">
+        <div class="max-w-md w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100">
+            <div class="p-8 text-center bg-slate-900 text-white">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-sky-600 text-white font-bold text-2xl mb-3 shadow-lg">
+                    🛡️
+                </div>
+                <h1 class="text-2xl font-bold tracking-tight">PolicyGuard</h1>
+                <p class="text-slate-400 text-sm mt-1">Renewal & Agent Management Portal</p>
+            </div>
+
+            <div class="p-8">
+                <!-- Tabs -->
+                <div class="flex border-b border-slate-200 mb-6">
+                    <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 pb-3 text-sm font-semibold text-sky-600 border-b-2 border-sky-600 transition-all">Sign In</button>
+                    <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 pb-3 text-sm font-medium text-slate-400 hover:text-slate-600 transition-all">Register Agent</button>
+                </div>
+
+                <!-- Login Form -->
+                <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Email Address</label>
+                        <input type="email" id="login-email" required placeholder="agent@gmail.com" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Password</label>
+                        <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm">
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-lg shadow-md transition-all text-sm mt-2">
+                        Sign In to Dashboard &rarr;
+                    </button>
+                </form>
+
+                <!-- Register Form -->
+                <form id="form-register" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Full Name</label>
+                        <input type="text" id="reg-name" required placeholder="John Doe" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Email Address</label>
+                        <input type="email" id="reg-email" required placeholder="agent@gmail.com" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Password</label>
+                        <input type="password" id="reg-password" required placeholder="••••••••" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">License Key (Admin Provided)</label>
+                        <input type="text" id="reg-key" required placeholder="XXXX-XXXX-XXXX-XXXX" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm font-mono uppercase">
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition-all text-sm mt-2">
+                        Complete Registration &rarr;
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER (Hidden when logged out) -->
+    <div id="app-container" class="flex h-screen overflow-hidden hidden relative">
+        
+        <!-- Sidebar Navigation (Collapsible) -->
+        <aside id="sidebar" class="w-64 bg-slate-900 text-white flex flex-col justify-between shadow-2xl z-30 absolute inset-y-0 left-0 transform -translate-x-full md:translate-x-0 md:static transition-transform duration-300 ease-in-out">
+            <div>
+                <!-- Brand Header -->
+                <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-sky-600 flex items-center justify-center font-bold text-lg shadow">
+                            🛡️
+                        </div>
+                        <div>
+                            <h2 class="font-bold text-base leading-tight">PolicyGuard</h2>
+                            <span class="text-xs text-sky-400">Renewal & Agent Manager</span>
+                        </div>
+                    </div>
+                    <!-- Close Sidebar Button for Mobile -->
+                    <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 text-xl font-bold">
+                        &times;
+                    </button>
+                </div>
+
+                <!-- User Profile Summary Box -->
+                <div class="mx-4 mt-5 p-3.5 bg-slate-800/80 rounded-xl border border-slate-700/50 flex items-center space-x-3">
+                    <div id="user-avatar-initial" class="w-10 h-10 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center shadow">
+                        A
+                    </div>
+                    <div class="overflow-hidden">
+                        <p id="user-name-display" class="text-sm font-semibold truncate text-white">Loading...</p>
+                        <span id="user-role-badge" class="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-900 text-sky-300 uppercase tracking-wide">Agent</span>
+                    </div>
+                </div>
+
+                <!-- Navigation Links -->
+                <nav class="p-4 space-y-1.5">
+                    <button onclick="switchView('expiring')" id="nav-expiring" class="w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all bg-sky-600 text-white shadow-md">
+                        <div class="flex items-center space-x-3">
+                            <span>⏱️</span>
+                            <span>Expiring Soon</span>
+                        </div>
+                        <span id="expiring-badge" class="px-2 py-0.5 rounded-full text-xs font-bold bg-white text-sky-700">0</span>
+                    </button>
+
+                    <button onclick="switchView('add')" id="nav-add" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <span>➕</span>
+                        <span>Add New Policy</span>
+                    </button>
+
+                    <button onclick="switchView('customers')" id="nav-customers" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <span>👥</span>
+                        <span>All Customers & Export</span>
+                    </button>
+
+                    <button onclick="switchView('admin')" id="nav-admin" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all text-slate-300 hover:bg-slate-800 hover:text-white hidden">
+                        <span>⚙️</span>
+                        <span>Admin Console</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Footer Logout -->
+            <div class="p-4 border-t border-slate-800">
+                <button onclick="handleLogout()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-rose-600/10 text-rose-400 hover:bg-rose-600 hover:text-white transition-all">
+                    <span>🚪</span>
+                    <span>Sign Out</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace Area -->
+        <main class="flex-1 flex flex-col overflow-hidden bg-slate-100 w-full">
+            <!-- Top Header Bar -->
+            <header class="h-16 bg-white border-b border-slate-200 px-4 md:px-8 flex items-center justify-between z-10 shadow-sm">
+                <div class="flex items-center space-x-3">
+                    <!-- Hamburger Toggle Button -->
+                    <button onclick="toggleSidebar()" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold md:hidden flex items-center justify-center text-lg">
+                        ☰
+                    </button>
+                    <h2 id="view-title" class="text-base md:text-lg font-bold text-slate-800 truncate">Expiring Policies Radar</h2>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <span id="current-date-display" class="text-xs font-medium px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg hidden sm:inline-block"></span>
+                </div>
+            </header>
+
+            <!-- Scrollable Content Pane -->
+            <div class="flex-1 overflow-y-auto p-4 md:p-8">
+                
+                <!-- VIEW 1: EXPIRING POLICIES -->
+                <div id="view-content-expiring" class="space-y-6">
+                    <!-- Filter Toolbar -->
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0 w-full md:w-auto">
+                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider mr-2 shrink-0">Filter:</span>
+                            <button onclick="setExpiryFilter(2)" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 shrink-0" data-days="2">2 Days</button>
+                            <button onclick="setExpiryFilter(5)" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 shrink-0" data-days="5">5 Days</button>
+                            <button onclick="setExpiryFilter(7)" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-sky-600 text-white shadow-sm shrink-0" data-days="7">7 Days</button>
+                            <button onclick="setExpiryFilter(15)" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 shrink-0" data-days="15">15 Days</button>
+                            <button onclick="setExpiryFilter(30)" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 shrink-0" data-days="30">30 Days</button>
+                        </div>
+                        <div class="text-xs text-slate-500 font-medium">
+                            Attention within <span id="filter-days-label" class="font-bold text-sky-600">7</span> days
+                        </div>
+                    </div>
+
+                    <!-- Cards / Table container -->
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse min-w-[850px]">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase text-[11px] font-bold tracking-wider">
+                                        <th class="py-3.5 px-4">Customer Name</th>
+                                        <th class="py-3.5 px-4">Mobile</th>
+                                        <th class="py-3.5 px-4">Policy Details</th>
+                                        <th class="py-3.5 px-4 whitespace-nowrap">Expiry Date</th>
+                                        <th class="py-3.5 px-4 text-center">Countdown</th>
+                                        <th class="py-3.5 px-4 text-right">Quick Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expiring-table-body" class="divide-y divide-slate-100 text-sm">
+                                    <!-- Populated Dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 2: ADD NEW POLICY -->
+                <div id="view-content-add" class="space-y-6 hidden">
+                    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 p-6 md:p-8">
+                        <div class="mb-6 pb-4 border-b border-slate-100">
+                            <h3 class="text-lg font-bold text-slate-800">Add New Insurance Policy</h3>
+                            <p class="text-xs text-slate-500">Enter customer details and policy expiration schedule to track renewals.</p>
+                        </div>
+
+                        <form onsubmit="handleSavePolicy(event)" class="space-y-5">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Customer Full Name</label>
+                                    <input type="text" id="p-client-name" required placeholder="Ramesh Kumar" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Mobile Number (WhatsApp Enabled)</label>
+                                    <input type="tel" id="p-client-phone" required placeholder="9876543210" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 text-sm">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Policy Number</label>
+                                    <input type="text" id="p-number" required placeholder="POL-99882311" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 text-sm font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Insurance Company</label>
+                                    <input type="text" id="p-company" required placeholder="HDFC Ergo / LIC / ICICI" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 text-sm">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Policy Type</label>
+                                    <select id="p-type" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 text-sm bg-white">
+                                        <option value="Motor Insurance">Motor Insurance</option>
+                                        <option value="Health Insurance">Health Insurance</option>
+                                        <option value="Life Insurance">Life Insurance</option>
+                                        <option value="Term Insurance">Term Insurance</option>
+                                        <option value="Commercial Vehicle">Commercial Vehicle</option>
+                                        <option value="Travel Insurance">Travel Insurance</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Premium Amount (₹)</label>
+                                    <input type="number" id="p-premium" required placeholder="12500" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Expiry Date</label>
+                                    <input type="date" id="p-expiry" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 text-sm">
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Customer Status</label>
+                                <select id="p-status" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 text-sm bg-white">
+                                    <option value="Active">Active Customer</option>
+                                    <option value="Inactive">Inactive / Moved to Other Company</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Additional Notes (Optional)</label>
+                                <textarea id="p-notes" rows="2" placeholder="Vehicle number, family members covered, etc." class="w-full px-4 py-2.5 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 text-sm"></textarea>
+                            </div>
+
+                            <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                                <button type="submit" class="px-6 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-lg text-sm shadow-md transition-all">
+                                    Save Policy Record
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- VIEW 3: ALL CUSTOMERS & EXPORT -->
+                <div id="view-content-customers" class="space-y-6 hidden">
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-3 flex-1 w-full md:w-auto">
+                            <input type="text" id="customer-search-input" oninput="renderCustomerTable()" placeholder="Search by customer name, phone or policy..." class="w-full px-4 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-sky-500">
+                            <select id="status-filter-select" onchange="renderCustomerTable()" class="w-full sm:w-auto px-3 py-2 rounded-lg border border-slate-200 text-sm bg-white text-slate-700">
+                                <option value="ALL">All Statuses</option>
+                                <option value="Active">Active Only</option>
+                                <option value="Inactive">Inactive Only</option>
+                            </select>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+                            <!-- Hidden File Input for Excel Import -->
+                            <input type="file" id="excel-import-file" accept=".xlsx, .xls, .csv" onchange="handleExcelImport(event)" class="hidden">
+                            <button onclick="document.getElementById('excel-import-file').click()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center space-x-2">
+                                <span>📤</span>
+                                <span>Import Excel / CSV</span>
+                            </button>
+                            <button onclick="exportSelectedCustomersExcel()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center space-x-2">
+                                <span>📥</span>
+                                <span>Export Selected (.csv)</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse min-w-[1050px]">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase text-[11px] font-bold tracking-wider">
+                                        <th class="py-3.5 px-3 text-center w-10"><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAllCustomers(this)"></th>
+                                        <th class="py-3.5 px-4">Customer Name</th>
+                                        <th class="py-3.5 px-4">Mobile</th>
+                                        <th class="py-3.5 px-4">Policy Number</th>
+                                        <th class="py-3.5 px-4">Company</th>
+                                        <th class="py-3.5 px-4">Type</th>
+                                        <th class="py-3.5 px-4 whitespace-nowrap">Expiry Date</th>
+                                        <th class="py-3.5 px-4 text-center">Status</th>
+                                        <th class="py-3.5 px-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customers-table-body" class="divide-y divide-slate-100 text-sm">
+                                    <!-- Populated Dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 4: ADMIN CONSOLE -->
+                <div id="view-content-admin" class="space-y-6 hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <p class="text-xs font-bold uppercase text-slate-400">Total Registered Agents</p>
+                            <h3 id="admin-stat-agents" class="text-3xl font-extrabold text-slate-800 mt-2">0</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <p class="text-xs font-bold uppercase text-slate-400">Total System Policies</p>
+                            <h3 id="admin-stat-policies" class="text-3xl font-extrabold text-slate-800 mt-2">0</h3>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <p class="text-xs font-bold uppercase text-slate-400">Annual Subscription Fee</p>
+                            <div class="flex items-center justify-between mt-2">
+                                <span id="admin-fee-display" class="text-2xl font-extrabold text-sky-600">₹2,000</span>
+                                <button onclick="openFeeEditModal()" class="px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg">Configure</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="font-bold text-slate-800">Generate Agent License Key</h3>
+                                <p class="text-xs text-slate-500">Create single-use access keys for agents subscribing to the platform.</p>
+                            </div>
+                            <button onclick="generateLicenseKey()" class="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold text-sm rounded-lg shadow-sm transition-all">
+                                🔑 Generate New Key
+                            </button>
+                        </div>
+                        <div id="generated-key-box" class="hidden p-4 bg-sky-50 border border-sky-200 rounded-lg flex items-center justify-between">
+                            <span id="new-key-text" class="font-mono font-bold text-sky-800 text-base"></span>
+                            <button onclick="copyGeneratedKey()" class="px-3 py-1 bg-sky-600 text-white text-xs font-semibold rounded hover:bg-sky-700">Copy Key</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                        <div class="p-6 border-b border-slate-200">
+                            <h3 class="font-bold text-slate-800">👥 Registered Agents Directory</h3>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-slate-400 uppercase text-[11px] font-bold tracking-wider">
+                                        <th class="py-3.5 px-6">Agent Name</th>
+                                        <th class="py-3.5 px-6">Email & Phone</th>
+                                        <th class="py-3.5 px-6">Subscription Expiry</th>
+                                        <th class="py-3.5 px-6">Status</th>
+                                        <th class="py-3.5 px-6">Extend / Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-agents-table-body" class="divide-y divide-slate-100 text-sm">
+                                    <!-- Populated Dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- CUSTOMER EDIT MODAL -->
+    <div id="edit-customer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 md:p-8 space-y-6 overflow-y-auto max-h-[90vh]">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                <h3 class="font-bold text-slate-800 text-lg">✏️ Edit Customer & Policy Details</h3>
+                <button onclick="closeEditCustomerModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+            </div>
+
+            <form onsubmit="handleUpdatePolicy(event)" class="space-y-4">
+                <input type="hidden" id="edit-policy-id">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Customer Full Name</label>
+                        <input type="text" id="edit-client-name" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Mobile Number</label>
+                        <input type="tel" id="edit-client-phone" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-sky-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Policy Number</label>
+                        <input type="text" id="edit-policy-number" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm font-mono focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Insurance Company</label>
+                        <input type="text" id="edit-company" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-sky-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Policy Type</label>
+                        <select id="edit-type" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:ring-2 focus:ring-sky-500">
+                            <option value="Motor Insurance">Motor Insurance</option>
+                            <option value="Health Insurance">Health Insurance</option>
+                            <option value="Life Insurance">Life Insurance</option>
+                            <option value="Term Insurance">Term Insurance</option>
+                            <option value="Commercial Vehicle">Commercial Vehicle</option>
+                            <option value="Travel Insurance">Travel Insurance</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Premium Amount (₹)</label>
+                        <input type="number" id="edit-premium" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-sky-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Expiry Date</label>
+                        <input type="date" id="edit-expiry" required class="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-sky-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Customer Status</label>
+                    <select id="edit-status" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm bg-white focus:ring-2 focus:ring-sky-500">
+                        <option value="Active">Active Customer</option>
+                        <option value="Inactive">Inactive (Moved to other insurer)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Additional Notes</label>
+                    <textarea id="edit-notes" rows="2" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-sky-500"></textarea>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="closeEditCustomerModal()" class="px-5 py-2.5 bg-slate-100 text-slate-600 text-sm font-semibold rounded-lg hover:bg-slate-200">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-sky-600 text-white text-sm font-semibold rounded-lg hover:bg-sky-700 shadow-sm">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Fee Edit Modal -->
+    <div id="fee-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+        <div class="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 space-y-4">
+            <h3 class="font-bold text-slate-800 text-lg">Update Subscription Fee</h3>
+            <div>
+                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">New Annual Fee (₹)</label>
+                <input type="number" id="modal-fee-input" class="w-full px-4 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 focus:ring-sky-500">
+            </div>
+            <div class="flex justify-end space-x-3 pt-2">
+                <button onclick="closeFeeEditModal()" class="px-4 py-2 bg-slate-100 text-slate-600 text-sm font-semibold rounded-lg hover:bg-slate-200">Cancel</button>
+                <button onclick="saveNewFee()" class="px-4 py-2 bg-sky-600 text-white text-sm font-semibold rounded-lg hover:bg-sky-700">Save Fee</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        // Database State
+        let db = {
+            currentUser: null,
+            users: [
+                { id: 'u1', name: 'Master Admin', email: 'minibala33ai@gmail.com', password: 'Hock@150998', role: 'admin', expiry: '2028-12-31', active: true },
+                { id: 'u2', name: 'Test Agent', email: 'agent@gmail.com', password: 'agent', role: 'agent', expiry: '2027-04-10', active: true }
+            ],
+            policies: [
+                { id: 'p1', agentEmail: 'agent@gmail.com', clientName: 'Rajesh Sharma', clientPhone: '9876543210', policyNumber: 'POL-887712', company: 'HDFC Ergo', type: 'Motor Insurance', premium: '14500', expiry: '2026-04-28', status: 'Active', notes: 'Honda City Comprehensive' },
+                { id: 'p2', agentEmail: 'agent@gmail.com', clientName: 'Sunita Verma', clientPhone: '9811223344', policyNumber: 'POL-992210', company: 'Star Health', type: 'Health Insurance', premium: '22000', expiry: '2026-04-30', status: 'Active', notes: 'Family Floater 5L' }
+            ],
+            licenseKeys: ['KEY-9988-2233-1100', 'KEY-4455-6677-8899'],
+            settings: { annualFee: 2000 }
+        };
+
+        function isPolicyActive(p) {
+            return p.status === 'Active';
+        }
+
+        // Sidebar Toggle for Mobile & Desktop
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        function initApp() {
+            const saved = localStorage.getItem('policyguard_db');
+            if (saved) {
+                try { 
+                    db = JSON.parse(saved); 
+                    db.policies.forEach(p => { if (!p.status) p.status = 'Active'; });
+                } catch(e) { console.error(e); }
+            }
+            
+            if (!db.users.some(u => u.email === 'minibala33ai@gmail.com')) {
+                db.users.push({ id: 'u_admin', name: 'Master Admin', email: 'minibala33ai@gmail.com', password: 'Hock@150998', role: 'admin', expiry: '2028-12-31', active: true });
+            }
+            if (!db.users.some(u => u.email === 'agent@gmail.com')) {
+                db.users.push({ id: 'u_agent', name: 'Test Agent', email: 'agent@gmail.com', password: 'agent', role: 'agent', expiry: '2027-04-10', active: true });
+            }
+
+            saveToStorage();
+            render();
+        }
+
+        function saveToStorage() {
+            localStorage.setItem('policyguard_db', JSON.stringify(db));
+        }
+
+        function switchAuthTab(tab) {
+            const isLogin = tab === 'login';
+            document.getElementById('tab-login').className = isLogin ? 'flex-1 pb-3 text-sm font-semibold text-sky-600 border-b-2 border-sky-600 transition-all' : 'flex-1 pb-3 text-sm font-medium text-slate-400 hover:text-slate-600 transition-all';
+            document.getElementById('tab-register').className = !isLogin ? 'flex-1 pb-3 text-sm font-semibold text-sky-600 border-b-2 border-sky-600 transition-all' : 'flex-1 pb-3 text-sm font-medium text-slate-400 hover:text-slate-600 transition-all';
+            
+            document.getElementById('form-login').classList.toggle('hidden', !isLogin);
+            document.getElementById('form-register').classList.toggle('hidden', isLogin);
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim().toLowerCase();
+            const pass = document.getElementById('login-password').value;
+
+            const user = db.users.find(u => u.email.toLowerCase() === email && u.password === pass);
+            if (!user) {
+                alert('Invalid email or password.');
+                return;
+            }
+            if (!user.active) {
+                alert('Your agent account has been disabled by the admin. Please renew your subscription.');
+                return;
+            }
+
+            db.currentUser = user;
+            saveToStorage();
+            render();
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim().toLowerCase();
+            const password = document.getElementById('reg-password').value;
+            const key = document.getElementById('reg-key').value.trim().toUpperCase();
+
+            if (db.users.some(u => u.email.toLowerCase() === email)) {
+                alert('Email is already registered. Please sign in.');
+                return;
+            }
+
+            if (!db.licenseKeys.includes(key)) {
+                alert('Invalid or already used license key.');
+                return;
+            }
+
+            db.licenseKeys = db.licenseKeys.filter(k => k !== key);
+
+            const expiryDate = new Date();
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+            const newUser = {
+                id: 'u_' + Date.now(),
+                name,
+                email,
+                password,
+                role: 'agent',
+                expiry: expiryDate.toISOString().split('T')[0],
+                active: true
+            };
+
+            db.users.push(newUser);
+            db.currentUser = newUser;
+            saveToStorage();
+            alert('Registration successful! Welcome to PolicyGuard.');
+            render();
+        }
+
+        function handleLogout() {
+            db.currentUser = null;
+            saveToStorage();
+            render();
+        }
+
+        let currentView = 'expiring';
+        let expiryFilterDays = 7;
+
+        function switchView(viewName) {
+            currentView = viewName;
+            ['expiring', 'add', 'customers', 'admin'].forEach(v => {
+                const el = document.getElementById(`view-content-${v}`);
+                const btn = document.getElementById(`nav-${v}`);
+                if (el) el.classList.toggle('hidden', v !== viewName);
+                if (btn) {
+                    if (v === viewName) {
+                        btn.className = 'w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all bg-sky-600 text-white shadow-md';
+                    } else {
+                        btn.className = 'w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium transition-all text-slate-300 hover:bg-slate-800 hover:text-white';
+                    }
+                }
+            });
+
+            const titles = {
+                expiring: 'Expiring Policies Radar',
+                add: 'Add New Insurance Policy',
+                customers: 'All Customers & Policy Vault',
+                admin: 'Admin Console & License Manager'
+            };
+            document.getElementById('view-title').innerText = titles[viewName] || 'Dashboard';
+            
+            // Auto close sidebar on mobile when switching views
+            if (window.innerWidth < 768) {
+                document.getElementById('sidebar').classList.add('-translate-x-full');
+            }
+
+            render();
+        }
+
+        function render() {
+            const authScreen = document.getElementById('auth-screen');
+            const appContainer = document.getElementById('app-container');
+
+            if (!db.currentUser) {
+                authScreen.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+                return;
+            }
+
+            authScreen.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+
+            document.getElementById('user-name-display').innerText = db.currentUser.name;
+            document.getElementById('user-role-badge').innerText = db.currentUser.role.toUpperCase();
+            document.getElementById('user-avatar-initial').innerText = db.currentUser.name.charAt(0).toUpperCase();
+            document.getElementById('current-date-display').innerText = 'Today: ' + new Date().toISOString().split('T')[0];
+
+            const adminNav = document.getElementById('nav-admin');
+            if (db.currentUser.role === 'admin') {
+                adminNav.classList.remove('hidden');
+            } else {
+                adminNav.classList.add('hidden');
+                if (currentView === 'admin') switchView('expiring');
+            }
+
+            if (currentView === 'expiring') renderExpiringTable();
+            if (currentView === 'customers') renderCustomerTable();
+            if (currentView === 'admin') renderAdminConsole();
+            updateExpiringBadgeCount();
+        }
+
+        function setExpiryFilter(days) {
+            expiryFilterDays = days;
+            document.getElementById('filter-days-label').innerText = days;
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                if (parseInt(b.dataset.days) === days) {
+                    b.className = 'filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-sky-600 text-white shadow-sm shrink-0';
+                } else {
+                    b.className = 'filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200 shrink-0';
+                }
+            });
+            renderExpiringTable();
+        }
+
+        function getVisiblePolicies() {
+            if (db.currentUser.role === 'admin') return db.policies;
+            return db.policies.filter(p => p.agentEmail === db.currentUser.email);
+        }
+
+        function updateExpiringBadgeCount() {
+            const today = new Date();
+            today.setHours(0,0,0,0);
+            const list = getVisiblePolicies().filter(p => {
+                if (!isPolicyActive(p)) return false;
+                const exp = new Date(p.expiry);
+                const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+                return diffDays >= 0 && diffDays <= 7;
+            });
+            document.getElementById('expiring-badge').innerText = list.length;
+        }
+
+        function renderExpiringTable() {
+            const tbody = document.getElementById('expiring-table-body');
+            tbody.innerHTML = '';
+
+            const today = new Date();
+            today.setHours(0,0,0,0);
+
+            const policies = getVisiblePolicies().filter(p => {
+                if (!isPolicyActive(p)) return false;
+                const exp = new Date(p.expiry);
+                const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+                return diffDays >= 0 && diffDays <= expiryFilterDays;
+            });
+
+            if (policies.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400 text-sm">No active policies expiring within the next ${expiryFilterDays} days.</td></tr>`;
+                return;
+            }
+
+            policies.forEach(p => {
+                const exp = new Date(p.expiry);
+                const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+                
+                const waText = encodeURIComponent(`Hello ${p.clientName}, your policy (${p.policyNumber}) with ${p.company} (${p.type}) is expiring on ${p.expiry}. Kindly reach out to renew your policy on time. Thank you!`);
+                const waLink = `https://wa.me/91${p.clientPhone}?text=${waText}`;
+                const callLink = `tel:${p.clientPhone}`;
+
+                let badgeColor = 'bg-amber-100 text-amber-800';
+                if (diffDays <= 2) badgeColor = 'bg-rose-100 text-rose-800 font-bold';
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition-all';
+                tr.innerHTML = `
+                    <td class="py-3.5 px-4 font-bold text-slate-800">${p.clientName}</td>
+                    <td class="py-3.5 px-4 font-mono text-xs text-slate-600">+91 ${p.clientPhone}</td>
+                    <td class="py-3.5 px-4">
+                        <div class="font-semibold text-slate-700">${p.policyNumber}</div>
+                        <div class="text-xs text-slate-500">${p.company} • <span class="text-sky-600 font-medium">${p.type}</span> (₹${p.premium})</div>
+                    </td>
+                    <td class="py-3.5 px-4 text-sm font-semibold text-slate-700 whitespace-nowrap">${p.expiry}</td>
+                    <td class="py-3.5 px-4 text-center">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${badgeColor} inline-block">
+                            ${diffDays === 0 ? 'Expires Today!' : diffDays + ' days left'}
+                        </span>
+                    </td>
+                    <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                        <div class="inline-flex items-center space-x-1.5">
+                            <a href="${callLink}" class="px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-md text-xs font-semibold inline-flex items-center space-x-1">
+                                <span>📞 Call</span>
+                            </a>
+                            <a href="${waLink}" target="_blank" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold inline-flex items-center space-x-1">
+                                <span>💬 WhatsApp</span>
+                            </a>
+                            <button onclick="openEditCustomerModal('${p.id}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-semibold">
+                                Edit
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function handleSavePolicy(event) {
+            event.preventDefault();
+            const newPolicy = {
+                id: 'p_' + Date.now(),
+                agentEmail: db.currentUser.email,
+                clientName: document.getElementById('p-client-name').value.trim(),
+                clientPhone: document.getElementById('p-client-phone').value.trim(),
+                policyNumber: document.getElementById('p-number').value.trim(),
+                company: document.getElementById('p-company').value.trim(),
+                type: document.getElementById('p-type').value,
+                premium: document.getElementById('p-premium').value,
+                expiry: document.getElementById('p-expiry').value,
+                status: document.getElementById('p-status').value || 'Active',
+                notes: document.getElementById('p-notes').value.trim()
+            };
+
+            db.policies.push(newPolicy);
+            saveToStorage();
+            alert('Policy saved successfully!');
+            event.target.reset();
+            switchView('expiring');
+        }
+
+        function openEditCustomerModal(id) {
+            const p = db.policies.find(item => item.id === id);
+            if (!p) return;
+
+            document.getElementById('edit-policy-id').value = p.id;
+            document.getElementById('edit-client-name').value = p.clientName || '';
+            document.getElementById('edit-client-phone').value = p.clientPhone || '';
+            document.getElementById('edit-policy-number').value = p.policyNumber || '';
+            document.getElementById('edit-company').value = p.company || '';
+            document.getElementById('edit-type').value = p.type || 'Motor Insurance';
+            document.getElementById('edit-premium').value = p.premium || '';
+            document.getElementById('edit-expiry').value = p.expiry || '';
+            document.getElementById('edit-status').value = p.status || 'Active';
+            document.getElementById('edit-notes').value = p.notes || '';
+
+            document.getElementById('edit-customer-modal').classList.remove('hidden');
+        }
+
+        function closeEditCustomerModal() {
+            document.getElementById('edit-customer-modal').classList.add('hidden');
+        }
+
+        function handleUpdatePolicy(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-policy-id').value;
+            const p = db.policies.find(item => item.id === id);
+            if (!p) return;
+
+            p.clientName = document.getElementById('edit-client-name').value.trim();
+            p.clientPhone = document.getElementById('edit-client-phone').value.trim();
+            p.policyNumber = document.getElementById('edit-policy-number').value.trim();
+            p.company = document.getElementById('edit-company').value.trim();
+            p.type = document.getElementById('edit-type').value;
+            p.premium = document.getElementById('edit-premium').value;
+            p.expiry = document.getElementById('edit-expiry').value;
+            p.status = document.getElementById('edit-status').value;
+            p.notes = document.getElementById('edit-notes').value.trim();
+
+            saveToStorage();
+            closeEditCustomerModal();
+            render();
+            alert('Customer profile & policy updated successfully!');
+        }
+
+        function toggleCustomerActiveStatus(id) {
+            const p = db.policies.find(item => item.id === id);
+            if (!p) return;
+
+            p.status = p.status === 'Active' ? 'Inactive' : 'Active';
+            saveToStorage();
+            render();
+        }
+
+        function renderCustomerTable() {
+            const tbody = document.getElementById('customers-table-body');
+            tbody.innerHTML = '';
+            const query = document.getElementById('customer-search-input').value.toLowerCase();
+            const statusFilter = document.getElementById('status-filter-select').value;
+
+            const policies = getVisiblePolicies().filter(p => {
+                const matchesQuery = p.clientName.toLowerCase().includes(query) || 
+                                     p.clientPhone.includes(query) || 
+                                     p.policyNumber.toLowerCase().includes(query);
+                
+                const activeNow = isPolicyActive(p);
+                let matchesStatus = true;
+                if (statusFilter === 'Active') matchesStatus = activeNow;
+                if (statusFilter === 'Inactive') matchesStatus = !activeNow;
+
+                return matchesQuery && matchesStatus;
+            });
+
+            if (policies.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-slate-400 text-sm">No customer records found.</td></tr>`;
+                return;
+            }
+
+            policies.forEach(p => {
+                const activeNow = isPolicyActive(p);
+                const statusBadge = activeNow 
+                    ? `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 inline-block">Active</span>`
+                    : `<span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 inline-block">Inactive</span>`;
+
+                const callLink = `tel:${p.clientPhone}`;
+                const waText = encodeURIComponent(`Hello ${p.clientName}, regarding your insurance policy ${p.policyNumber} with ${p.company}...`);
+                const waLink = `https://wa.me/91${p.clientPhone}?text=${waText}`;
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-all';
+                tr.innerHTML = `
+                    <td class="py-3.5 px-3 text-center"><input type="checkbox" class="customer-checkbox" value="${p.id}"></td>
+                    <td class="py-3.5 px-4 font-semibold text-slate-800">${p.clientName}</td>
+                    <td class="py-3.5 px-4 font-mono text-xs text-slate-600">+91 ${p.clientPhone}</td>
+                    <td class="py-3.5 px-4 font-mono text-xs font-semibold text-sky-700">${p.policyNumber}</td>
+                    <td class="py-3.5 px-4 text-slate-600">${p.company}</td>
+                    <td class="py-3.5 px-4 text-slate-600">${p.type}</td>
+                    <td class="py-3.5 px-4 font-semibold text-slate-700 whitespace-nowrap">${p.expiry}</td>
+                    <td class="py-3.5 px-4 text-center">${statusBadge}</td>
+                    <td class="py-3.5 px-4 text-right whitespace-nowrap">
+                        <div class="inline-flex items-center space-x-1.5">
+                            <a href="${callLink}" class="px-2.5 py-1.5 bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 rounded-md text-xs font-semibold inline-flex items-center space-x-1">
+                                <span>📞 Call</span>
+                            </a>
+                            <a href="${waLink}" target="_blank" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-xs font-semibold inline-flex items-center space-x-1">
+                                <span>💬 WhatsApp</span>
+                            </a>
+                            <button onclick="toggleCustomerActiveStatus('${p.id}')" class="px-2.5 py-1.5 ${activeNow ? 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'} rounded-md text-xs font-semibold">
+                                ${activeNow ? 'Disable' : 'Enable'}
+                            </button>
+                            <button onclick="openEditCustomerModal('${p.id}')" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-semibold">
+                                Edit
+                            </button>
+                            <button onclick="deletePolicy('${p.id}')" class="px-2.5 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-100 border border-rose-200 rounded-md text-xs font-semibold">
+                                Delete
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function toggleSelectAllCustomers(master) {
+            document.querySelectorAll('.customer-checkbox').forEach(cb => cb.checked = master.checked);
+        }
+
+        function exportSelectedCustomersExcel() {
+            const checkedBoxes = document.querySelectorAll('.customer-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                alert('Please select at least one customer to export.');
+                return;
+            }
+
+            const selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
+            const dataToExport = db.policies.filter(p => selectedIds.includes(p.id)).map(p => ({
+                'Customer Name': p.clientName,
+                'Mobile Number': p.clientPhone,
+                'Policy Number': p.policyNumber,
+                'Insurance Company': p.company,
+                'Policy Category': p.type,
+                'Premium (INR)': p.premium,
+                'Expiry Date': p.expiry,
+                'Status': p.status,
+                'Notes': p.notes
+            }));
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Selected Customers");
+            XLSX.writeFile(workbook, "PolicyGuard_Customers_Export.xlsx");
+        }
+
+        function handleExcelImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                    if (!jsonData || jsonData.length === 0) {
+                        alert('The uploaded file contains no data.');
+                        return;
+                    }
+
+                    let importedCount = 0;
+                    jsonData.forEach(row => {
+                        const clientName = row['Customer Name'] || row['Customer'] || row['Name'] || '';
+                        const clientPhone = String(row['Mobile Number'] || row['Mobile'] || row['Phone'] || '').trim();
+                        const policyNumber = String(row['Policy Number'] || row['Policy'] || row['Policy No'] || '').trim();
+
+                        if (clientName && policyNumber) {
+                            db.policies.push({
+                                id: 'p_' + Date.now() + '_' + Math.random().toString(36).substring(2, 5),
+                                agentEmail: db.currentUser.email,
+                                clientName: clientName,
+                                clientPhone: clientPhone,
+                                policyNumber: policyNumber,
+                                company: row['Insurance Company'] || row['Company'] || 'General',
+                                type: row['Policy Category'] || row['Type'] || 'Motor Insurance',
+                                premium: String(row['Premium (INR)'] || row['Premium'] || '0'),
+                                expiry: row['Expiry Date'] || row['Expiry'] || new Date().toISOString().split('T')[0],
+                                status: row['Status'] || 'Active',
+                                notes: row['Notes'] || 'Imported from Excel'
+                            });
+                            importedCount++;
+                        }
+                    });
+
+                    saveToStorage();
+                    render();
+                    alert(`Successfully imported ${importedCount} customers into PolicyGuard!`);
+                } catch (err) {
+                    console.error(err);
+                    alert('Failed to parse Excel/CSV file. Please ensure columns match the exported format.');
+                }
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        function deletePolicy(id) {
+            if (confirm('Are you sure you want to delete this policy record?')) {
+                db.policies = db.policies.filter(p => p.id !== id);
+                saveToStorage();
+                render();
+            }
+        }
+
+        function renderAdminConsole() {
+            if (db.currentUser.role !== 'admin') return;
+
+            document.getElementById('admin-stat-agents').innerText = db.users.filter(u => u.role === 'agent').length;
+            document.getElementById('admin-stat-policies').innerText = db.policies.length;
+            document.getElementById('admin-fee-display').innerText = '₹' + db.settings.annualFee.toLocaleString();
+
+            const tbody = document.getElementById('admin-agents-table-body');
+            tbody.innerHTML = '';
+
+            db.users.filter(u => u.role === 'agent').forEach(agent => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-all';
+                tr.innerHTML = `
+                    <td class="py-4 px-6 font-semibold text-slate-800">${agent.name}</td>
+                    <td class="py-4 px-6 text-xs text-slate-500 font-mono">${agent.email}</td>
+                    <td class="py-4 px-6 font-semibold text-slate-700">${agent.expiry}</td>
+                    <td class="py-4 px-6">
+                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${agent.active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">
+                            ${agent.active ? 'Active' : 'Disabled'}
+                        </span>
+                    </td>
+                    <td class="py-4 px-6 space-x-1.5">
+                        <button onclick="extendAgentSubscription('${agent.id}', '1m')" class="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-xs font-semibold">+1M</button>
+                        <button onclick="extendAgentSubscription('${agent.id}', '6m')" class="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-xs font-semibold">+6M</button>
+                        <button onclick="extendAgentSubscription('${agent.id}', '1y')" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-semibold">+1Yr</button>
+                        <button onclick="toggleAgentStatus('${agent.id}')" class="px-2.5 py-1 ${agent.active ? 'bg-rose-50 text-rose-600 hover:bg-rose-100' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'} rounded text-xs font-semibold">
+                            ${agent.active ? 'Disable' : 'Enable'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function generateLicenseKey() {
+            const randomKey = 'KEY-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase() + '-' + Math.random().toString(36).substring(2, 6).toUpperCase();
+            db.licenseKeys.push(randomKey);
+            saveToStorage();
+            document.getElementById('new-key-text').innerText = randomKey;
+            document.getElementById('generated-key-box').classList.remove('hidden');
+            renderAdminConsole();
+        }
+
+        function copyGeneratedKey() {
+            const keyText = document.getElementById('new-key-text').innerText;
+            navigator.clipboard.writeText(keyText);
+            alert('License key copied to clipboard!');
+        }
+
+        function extendAgentSubscription(agentId, period) {
+            const agent = db.users.find(u => u.id === agentId);
+            if (!agent) return;
+            const exp = new Date(agent.expiry > new Date() ? agent.expiry : new Date());
+            if (period === '1m') exp.setMonth(exp.getMonth() + 1);
+            if (period === '6m') exp.setMonth(exp.getMonth() + 6);
+            if (period === '1y') exp.setFullYear(exp.getFullYear() + 1);
+            agent.expiry = exp.toISOString().split('T')[0];
+            saveToStorage();
+            renderAdminConsole();
+            alert(`Agent subscription extended successfully! New Expiry: ${agent.expiry}`);
+        }
+
+        function toggleAgentStatus(agentId) {
+            const agent = db.users.find(u => u.id === agentId);
+            if (!agent) return;
+            agent.active = !agent.active;
+            saveToStorage();
+            renderAdminConsole();
+        }
+
+        function openFeeEditModal() {
+            document.getElementById('modal-fee-input').value = db.settings.annualFee;
+            document.getElementById('fee-modal').classList.remove('hidden');
+        }
+
+        function closeFeeEditModal() {
+            document.getElementById('fee-modal').classList.add('hidden');
+        }
+
+        function saveNewFee() {
+            const fee = parseFloat(document.getElementById('modal-fee-input').value);
+            if (isNaN(fee) || fee <= 0) {
+                alert('Please enter a valid fee amount.');
+                return;
+            }
+            db.settings.annualFee = fee;
+            saveToStorage();
+            closeFeeEditModal();
+            renderAdminConsole();
+            alert('Annual subscription fee updated successfully!');
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
