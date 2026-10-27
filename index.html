@@ -1,0 +1,1934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PolicyGuard - Smart Policy & Renewal Management Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+
+    <!-- AUTHENTICATION SCREEN -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-sky-900 p-4">
+        <div class="max-w-md w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100">
+            <div class="p-8 text-center bg-slate-900 text-white">
+                <div class="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-sky-600 text-white font-bold text-2xl mb-3 shadow-lg">🛡️</div>
+                <h1 class="text-2xl font-bold tracking-tight">PolicyGuard</h1>
+                <p class="text-slate-400 text-sm mt-1">Smart Policy & Renewal Management Hub</p>
+            </div>
+            
+            <div class="p-8">
+                <!-- Auth Tabs -->
+                <div class="flex border-b border-slate-200 mb-6">
+                    <button id="tab-login" onclick="switchAuthTab('login')" class="flex-1 pb-3 text-sm font-semibold text-sky-600 border-b-2 border-sky-600 transition-all">Sign In</button>
+                    <button id="tab-register" onclick="switchAuthTab('register')" class="flex-1 pb-3 text-sm font-medium text-slate-400 hover:text-slate-600 transition-all">Register Agent</button>
+                </div>
+
+                <!-- Sign In Form -->
+                <form id="form-login" onsubmit="handleLogin(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Email Address</label>
+                        <input type="email" id="login-email" required placeholder="user@gmail.com" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Password</label>
+                        <input type="password" id="login-password" required placeholder="••••••••" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm">
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-sky-600 hover:bg-sky-700 text-white font-semibold rounded-lg shadow-md transition-all text-sm mt-2">Sign In to Dashboard &rarr;</button>
+                </form>
+
+                <!-- Register Form -->
+                <form id="form-register" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Full Name</label>
+                        <input type="text" id="reg-name" required placeholder="John Doe" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Email Address</label>
+                        <input type="email" id="reg-email" required placeholder="user@gmail.com" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Password</label>
+                        <input type="password" id="reg-password" required placeholder="••••••••" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Assigned Group</label>
+                        <select id="reg-group" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm bg-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Agent Subscription Key (Required)</label>
+                        <input type="text" id="reg-key" required placeholder="PG-KEY-XXXXXX" class="w-full px-4 py-3 rounded-lg border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-none text-sm font-mono uppercase">
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition-all text-sm mt-2">Complete Registration &rarr;</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app-container" class="flex h-screen overflow-hidden hidden relative">
+        <aside id="sidebar" class="w-64 bg-slate-900 text-white flex flex-col justify-between shadow-2xl z-30 absolute inset-y-0 left-0 transform -translate-x-full md:translate-x-0 md:static transition-transform duration-300">
+            <div>
+                <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-lg bg-sky-600 flex items-center justify-center font-bold text-lg shadow">🛡️</div>
+                        <div>
+                            <h2 class="font-bold text-base leading-tight">PolicyGuard</h2>
+                            <span id="supabase-status-badge" class="text-[11px] font-semibold text-emerald-400">● Supabase Cloud Live</span>
+                        </div>
+                    </div>
+                    <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white p-1 text-xl font-bold">&times;</button>
+                </div>
+
+                <div class="mx-4 mt-5 p-3.5 bg-slate-800/80 rounded-xl border border-slate-700/50 flex items-center space-x-3">
+                    <div id="user-avatar-initial" class="w-10 h-10 rounded-full bg-sky-500 text-white font-bold flex items-center justify-center shadow">A</div>
+                    <div class="overflow-hidden">
+                        <p id="user-name-display" class="text-sm font-semibold truncate text-white">Loading...</p>
+                        <span id="user-role-badge" class="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-900 text-sky-300 uppercase tracking-wide">Agent</span>
+                    </div>
+                </div>
+
+                <nav class="p-4 space-y-1.5">
+                    <button onclick="switchView('expiring')" id="nav-expiring" class="nav-btn w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium bg-sky-600 text-white shadow-md">
+                        <div class="flex items-center space-x-3"><span>⏱️</span><span>Expiring Soon</span></div>
+                        <span id="expiring-badge" class="px-2 py-0.5 rounded-full text-xs font-bold bg-white text-sky-700">0</span>
+                    </button>
+                    <button onclick="switchView('add')" id="nav-add" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <span>➕</span><span>Add New Policy</span>
+                    </button>
+                    <button onclick="switchView('customers')" id="nav-customers" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <span>👥</span><span>My Customers Vault</span>
+                    </button>
+                    <button onclick="switchView('financial')" id="nav-financial" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <span>📊</span><span>Financial Analysis</span>
+                    </button>
+                    <button onclick="switchView('whatsapp')" id="nav-whatsapp" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white">
+                        <span>💬</span><span>WhatsApp Templates</span>
+                    </button>
+                    <!-- Admin Console -->
+                    <button onclick="switchView('admin')" id="nav-admin" class="nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white hidden">
+                        <span>⚙️</span><span>Admin Console</span>
+                    </button>
+                </nav>
+            </div>
+            <div class="p-4 border-t border-slate-800">
+                <button onclick="handleLogout()" class="w-full flex items-center justify-center space-x-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-rose-600/10 text-rose-400 hover:bg-rose-600 hover:text-white transition-all cursor-pointer">
+                    <span>🚪</span><span>Sign Out</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col overflow-hidden bg-slate-100 w-full">
+            <header class="h-16 bg-white border-b border-slate-200 px-4 md:px-8 flex items-center justify-between z-10 shadow-sm">
+                <div class="flex items-center space-x-3">
+                    <button onclick="toggleSidebar()" class="p-2 rounded-lg bg-slate-100 text-slate-700 font-bold md:hidden text-lg">☰</button>
+                    <h2 id="view-title" class="text-base md:text-lg font-bold text-slate-800 truncate">Expiring Policies Radar</h2>
+                </div>
+            </header>
+
+            <div class="flex-1 overflow-y-auto p-4 md:p-8">
+                <!-- VIEW 1: EXPIRING POLICIES -->
+                <div id="view-content-expiring" class="space-y-6">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                        <div class="flex flex-wrap items-center justify-between gap-4">
+                            <div class="flex items-center space-x-2 overflow-x-auto pb-1 sm:pb-0 w-full md:w-auto">
+                                <span class="text-xs font-semibold text-slate-400 uppercase mr-2 shrink-0">Filter:</span>
+                                <button onclick="setExpiryFilter(2)" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 shrink-0" data-days="2">2 Days</button>
+                                <button onclick="setExpiryFilter(5)" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 shrink-0" data-days="5">5 Days</button>
+                                <button onclick="setExpiryFilter(7)" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 text-white shrink-0" data-days="7">7 Days</button>
+                                <button onclick="setExpiryFilter(15)" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 shrink-0" data-days="15">15 Days</button>
+                                <button onclick="setExpiryFilter(30)" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 shrink-0" data-days="30">30 Days</button>
+                                <button onclick="setExpiryFilter('custom')" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 shrink-0" data-days="custom">Custom Date</button>
+                            </div>
+                        </div>
+
+                        <!-- Custom Date Range Box -->
+                        <div id="custom-expiry-date-box" class="flex flex-wrap items-center gap-3 pt-3 border-t hidden">
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase text-slate-500 mb-0.5">From Expiry</label>
+                                <input type="date" id="custom-exp-start" onchange="renderExpiringTable()" class="p-2 border rounded-lg text-xs bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase text-slate-500 mb-0.5">To Expiry</label>
+                                <input type="date" id="custom-exp-end" onchange="renderExpiringTable()" class="p-2 border rounded-lg text-xs bg-white">
+                            </div>
+                            <button onclick="clearCustomExpiryDates()" class="mt-4 px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-lg">Reset Custom</button>
+                        </div>
+                    </div>
+
+                    <!-- Filtered Totals Summary Card -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-bold uppercase text-slate-400">Expiring Premium Expected</p>
+                                <h3 id="radar-total-premium" class="text-xl font-extrabold text-slate-800 mt-1">₹0</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-lg">💰</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-bold uppercase text-amber-600">Customer Payout Expected</p>
+                                <h3 id="radar-total-cust-payout" class="text-xl font-extrabold text-amber-700 mt-1">₹0</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-lg">🎁</div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-bold uppercase text-emerald-600">Agent Commission Expected</p>
+                                <h3 id="radar-total-agent-payout" class="text-xl font-extrabold text-emerald-700 mt-1">₹0</h3>
+                            </div>
+                            <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-lg">💼</div>
+                        </div>
+                    </div>
+
+                    <!-- DESKTOP TABLE VIEW -->
+                    <div class="bg-white rounded-xl shadow-sm border overflow-hidden hidden md:block">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse min-w-[1150px]">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b text-slate-400 uppercase text-[11px] font-bold">
+                                        <th class="py-3.5 px-4">Customer</th>
+                                        <th class="py-3.5 px-4">Policy / Vehicle Details</th>
+                                        <th class="py-3.5 px-4">IDV</th>
+                                        <th class="py-3.5 px-4">Policy Duration (Start & Expiry)</th>
+                                        <th class="py-3.5 px-4 text-center">Payouts (Cust / Agent)</th>
+                                        <th class="py-3.5 px-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expiring-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- MOBILE CARD VIEW -->
+                    <div id="expiring-mobile-cards-container" class="space-y-4 md:hidden"></div>
+                </div>
+
+                <!-- VIEW 2: ADD NEW POLICY -->
+                <div id="view-content-add" class="space-y-6 hidden">
+                    <div class="max-w-3xl mx-auto bg-white rounded-xl shadow-sm border p-6 md:p-8">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 pb-2 border-b">Add New Policy Record</h3>
+                        <form id="add-policy-form" onsubmit="handleSavePolicy(event)" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Customer Name</label>
+                                    <input type="text" id="p-client-name" required placeholder="Ramesh Kumar" class="w-full p-2.5 border rounded-lg text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Mobile Number</label>
+                                    <input type="tel" id="p-client-phone" required placeholder="9876543210" class="w-full p-2.5 border rounded-lg text-sm">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Policy Type</label>
+                                    <select id="p-type" onchange="toggleMotorFields()" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                                        <option value="Motor Insurance">Motor Insurance</option>
+                                        <option value="Health Insurance">Health Insurance</option>
+                                        <option value="Life Insurance">Life Insurance</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Policy Number</label>
+                                    <input type="text" id="p-number" required placeholder="POL-998822" class="w-full p-2.5 border rounded-lg text-sm font-mono">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Insurer Company</label>
+                                    <input type="text" id="p-company" required placeholder="HDFC Ergo / LIC" class="w-full p-2.5 border rounded-lg text-sm">
+                                </div>
+                            </div>
+
+                            <div id="motor-fields-box" class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-sky-50/50 rounded-xl border border-sky-100">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-sky-800 mb-1">Vehicle Category</label>
+                                    <select id="p-sub-type" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                                        <option value="Bike">Bike 🏍️</option>
+                                        <option value="Car">Car 🚗</option>
+                                        <option value="Bus">Bus 🚌</option>
+                                        <option value="Van">Van 🚐</option>
+                                        <option value="Others">Others 🚜</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-sky-800 mb-1">Vehicle Number</label>
+                                    <input type="text" id="p-vehicle-num" placeholder="TN 01 AB 1234" class="w-full p-2.5 border rounded-lg text-sm font-mono uppercase">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">IDV</label>
+                                    <input type="text" id="p-idv" placeholder="₹ 3,50,000" class="w-full p-2.5 border rounded-lg text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Premium Amount (₹)</label>
+                                    <input type="number" id="p-premium" required placeholder="12500" class="w-full p-2.5 border rounded-lg text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Policy Start Date</label>
+                                    <input type="date" id="p-start-date" onchange="autoCalculateExpiry()" required class="w-full p-2.5 border rounded-lg text-sm">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Policy Expiry Date (+1 Year)</label>
+                                    <input type="date" id="p-expiry" required class="w-full p-2.5 border rounded-lg text-sm bg-slate-50">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-amber-50/50 rounded-xl border border-amber-100">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-amber-800 mb-1">Customer Payout Discount (₹)</label>
+                                    <input type="number" id="p-cust-payout" placeholder="500" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-amber-800 mb-1">Agent Net Commission (₹)</label>
+                                    <input type="number" id="p-agent-payout" placeholder="1500" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                                </div>
+                            </div>
+
+                            <div class="flex gap-4 pt-2">
+                                <button type="button" onclick="document.getElementById('add-policy-form').reset(); toggleMotorFields();" class="w-1/3 py-3 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg shadow">Reset Form</button>
+                                <button type="submit" class="w-2/3 py-3 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg shadow">Save & Sync Policy</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- VIEW 3: ALL CUSTOMERS VAULT -->
+                <div id="view-content-customers" class="space-y-6 hidden">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center space-x-3 flex-1 flex-wrap gap-2">
+                            <input type="text" id="customer-search-input" oninput="renderCustomerTable()" placeholder="Search by name, phone or vehicle no..." class="p-2 border rounded-lg text-sm w-full max-w-xs">
+                            <select id="status-filter-select" onchange="renderCustomerTable()" class="p-2 border rounded-lg text-sm bg-white">
+                                <option value="ALL">All Statuses</option>
+                                <option value="Active">Active Only</option>
+                                <option value="Inactive">Inactive Only</option>
+                            </select>
+                            <select id="agent-filter-select" onchange="renderCustomerTable()" class="p-2 border rounded-lg text-sm bg-white hidden">
+                                <option value="ALL">All Agents</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <input type="file" id="excel-import-file" accept=".xlsx, .xls, .csv" onchange="handleExcelImport(event)" class="hidden">
+                            <button onclick="document.getElementById('excel-import-file').click()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg shadow">📤 Import Excel</button>
+                            <button onclick="exportSelectedCustomersExcel()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow">📥 Export CSV</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse min-w-[1200px]">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b text-slate-400 uppercase text-[11px] font-bold">
+                                        <th class="py-3.5 px-3 text-center"><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAllCustomers(this)"></th>
+                                        <th class="py-3.5 px-4">Customer</th>
+                                        <th class="py-3.5 px-4">Mobile</th>
+                                        <th class="py-3.5 px-4">Policy & Vehicle</th>
+                                        <th class="py-3.5 px-4">IDV</th>
+                                        <th class="py-3.5 px-4">Policy Duration</th>
+                                        <th class="py-3.5 px-4 text-center">Status</th>
+                                        <th class="py-3.5 px-4 text-center">Payouts</th>
+                                        <th class="py-3.5 px-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="customers-table-body" class="divide-y divide-slate-100 text-sm"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 4: FINANCIAL ANALYSIS -->
+                <div id="view-content-financial" class="space-y-6 hidden">
+                    <div class="bg-white p-4 rounded-xl shadow-sm border flex flex-wrap items-center justify-between gap-4">
+                        <div class="flex items-center space-x-3 flex-wrap gap-2">
+                            <div>
+                                <label class="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Filter Period</label>
+                                <select id="fin-filter-type" onchange="onFinancialFilterChange()" class="p-2 border rounded-lg text-sm bg-white font-semibold">
+                                    <option value="month">This Month</option>
+                                    <option value="last_month">Last Month</option>
+                                    <option value="year">This Year</option>
+                                    <option value="custom">Custom Date Range</option>
+                                </select>
+                            </div>
+                            <!-- Agent Filter (Enabled for Admins / Main Admin) -->
+                            <div id="fin-agent-filter-wrapper" class="hidden">
+                                <label class="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Filter Agent</label>
+                                <select id="fin-agent-select" onchange="renderFinancialAnalysis()" class="p-2 border rounded-lg text-sm bg-white font-semibold">
+                                    <option value="ALL">All Accessible Agents</option>
+                                </select>
+                            </div>
+                            <div id="fin-custom-dates" class="flex items-center gap-2 hidden">
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">Start Date</label>
+                                    <input type="date" id="fin-start-date" onchange="renderFinancialAnalysis()" class="p-2 border rounded-lg text-sm bg-white">
+                                </div>
+                                <div>
+                                    <label class="block text-[10px] font-bold uppercase text-slate-400 mb-0.5">End Date</label>
+                                    <input type="date" id="fin-end-date" onchange="renderFinancialAnalysis()" class="p-2 border rounded-lg text-sm bg-white">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <p class="text-xs font-bold uppercase text-slate-400">Total Premium Collected</p>
+                            <h3 id="fin-total-premium" class="text-3xl font-extrabold text-slate-800 mt-2">₹0</h3>
+                            <p class="text-xs text-slate-500 mt-1">Sum of all policy premiums in period</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <p class="text-xs font-bold uppercase text-amber-600">Customer Payout Discounts</p>
+                            <h3 id="fin-total-cust-payout" class="text-3xl font-extrabold text-amber-700 mt-2">₹0</h3>
+                            <p class="text-xs text-amber-600 mt-1">Total customer discounts given</p>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                            <p class="text-xs font-bold uppercase text-emerald-600">Agent Net Commission</p>
+                            <h3 id="fin-total-agent-payout" class="text-3xl font-extrabold text-emerald-700 mt-2">₹0</h3>
+                            <p class="text-xs text-emerald-600 mt-1">Total net earnings for agents</p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border p-6">
+                        <h4 class="font-bold text-slate-800 text-base mb-4">📋 Transactions Breakdown in Period</h4>
+                        <div class="overflow-x-auto border rounded-xl">
+                            <table class="w-full text-left border-collapse text-sm min-w-[950px]">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b text-slate-400 uppercase text-[11px] font-bold">
+                                        <th class="py-3 px-4">Customer</th>
+                                        <th class="py-3 px-4">Policy & Company</th>
+                                        <th class="py-3 px-4">Start Date</th>
+                                        <th class="py-3 px-4">Premium (₹)</th>
+                                        <th class="py-3 px-4">Cust Discount (₹)</th>
+                                        <th class="py-3 px-4 text-right">Agent Commission (₹)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="fin-transactions-table-body" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VIEW 5: WHATSAPP TEMPLATES -->
+                <div id="view-content-whatsapp" class="space-y-6 hidden">
+                    <div class="bg-white p-6 rounded-xl shadow border space-y-4">
+                        <div class="border-b pb-4 flex justify-between items-center">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-lg">💬 WhatsApp Template Hub</h3>
+                                <p class="text-xs text-slate-500">Create and manage custom templates for quick reminders. Use placeholders: <code class="bg-slate-100 px-1 py-0.5 rounded text-sky-700">{client_name}, {company}, {policy_number}, {vehicle_number}, {idv}, {new_start_date}, {new_expiry_date}, {payment_url}</code></p>
+                            </div>
+                        </div>
+                        <form onsubmit="handleSaveWhatsappTemplate(event)" class="space-y-4">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Template Title</label>
+                                    <input type="text" id="wt-title" required placeholder="Urgent Renewal Notice" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Message Body</label>
+                                <textarea id="wt-body" rows="5" required placeholder="Hi {client_name}, your policy {policy_number} with {company} is expiring on {new_expiry_date}. Pay securely here: {payment_url}" class="w-full p-2.5 border rounded-lg text-sm bg-white"></textarea>
+                            </div>
+                            <button type="submit" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-lg shadow">Save Template 💾</button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow border space-y-4">
+                        <h4 class="font-bold text-slate-800 text-base">Saved Templates</h4>
+                        <div id="whatsapp-templates-list" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    </div>
+                </div>
+
+                <!-- VIEW 6: ADMIN CONSOLE -->
+                <div id="view-content-admin" class="space-y-6 hidden">
+                    <div class="bg-white p-6 rounded-xl shadow border space-y-4">
+                        <div class="border-b pb-4">
+                            <h3 class="font-bold text-slate-800 text-lg">📁 Create Custom Group Name</h3>
+                            <p class="text-xs text-slate-500">Add new group categories (e.g. Group F, Regional North) to map agents and admins.</p>
+                        </div>
+                        <form onsubmit="handleCreateGroup(event)" class="flex gap-4">
+                            <input type="text" id="new-group-name" required placeholder="Enter Group Name (e.g. Group F)" class="flex-1 p-2.5 border rounded-lg text-sm bg-white">
+                            <button type="submit" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-lg shadow">Add Group ➕</button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow border space-y-4">
+                        <div class="border-b pb-4">
+                            <h3 class="font-bold text-slate-800 text-lg">➕ Create New Admin or Agent Account</h3>
+                            <p class="text-xs text-slate-500">Direct user provisioning with group mapping.</p>
+                        </div>
+                        <form onsubmit="handleAdminCreateUser(event)" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Full Name</label>
+                                <input type="text" id="admin-new-name" required placeholder="Jane Doe" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Email Address</label>
+                                <input type="email" id="admin-new-email" required placeholder="user@gmail.com" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Password</label>
+                                <input type="password" id="admin-new-pass" required placeholder="••••••••" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Role</label>
+                                <select id="admin-new-role" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                                    <option value="AGENT">AGENT</option>
+                                    <option value="ADMIN">ADMIN</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Group</label>
+                                <select id="admin-new-group" class="w-full p-2.5 border rounded-lg text-sm bg-white group-select-options"></select>
+                            </div>
+                            <div class="md:col-span-5 text-right">
+                                <button type="submit" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg shadow">Create Account 🚀</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow border space-y-4">
+                        <div class="flex justify-between items-center border-b pb-4">
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-lg">👥 Registered Users Directory</h3>
+                                <p class="text-xs text-slate-500">Manage user statuses, credentials, groups, and access.</p>
+                            </div>
+                        </div>
+                        <div class="overflow-x-auto border rounded-xl">
+                            <table class="w-full text-left border-collapse text-sm min-w-[1050px]">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b text-slate-400 uppercase text-[11px] font-bold">
+                                        <th class="py-3 px-4">Name</th>
+                                        <th class="py-3 px-4">Email</th>
+                                        <th class="py-3 px-4">Password</th>
+                                        <th class="py-3 px-4">Role</th>
+                                        <th class="py-3 px-4">Group</th>
+                                        <th class="py-3 px-4">Expiry Date</th>
+                                        <th class="py-3 px-4 text-center">Status</th>
+                                        <th class="py-3 px-4 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-agents-table-body" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-xl shadow border space-y-6">
+                        <div class="border-b pb-4">
+                            <h3 class="font-bold text-slate-800 text-lg">⚙️ Subscription Key Console</h3>
+                            <p class="text-xs text-slate-500">Generate secure registration keys for external agent signups.</p>
+                        </div>
+                        <form onsubmit="handleGenerateKey(event)" class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-sky-50 rounded-xl border border-sky-100">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-sky-800 mb-1">Plan Name</label>
+                                <input type="text" id="admin-plan-name" required placeholder="Monthly Pro License" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase text-sky-800 mb-1">Fee (₹)</label>
+                                <input type="number" id="admin-plan-amount" required placeholder="499" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="submit" class="w-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-lg shadow text-sm">Generate Key 🔑</button>
+                            </div>
+                        </form>
+                        <div>
+                            <h4 class="font-bold text-sm text-slate-700 mb-3">Generated Keys</h4>
+                            <div class="overflow-x-auto border rounded-xl">
+                                <table class="w-full text-left border-collapse text-sm">
+                                    <thead>
+                                        <tr class="bg-slate-50 border-b text-slate-400 uppercase text-[11px] font-bold">
+                                            <th class="py-3 px-4">Key Code</th>
+                                            <th class="py-3 px-4">Plan Name</th>
+                                            <th class="py-3 px-4">Amount</th>
+                                            <th class="py-3 px-4 text-center">Status</th>
+                                            <th class="py-3 px-4 text-right">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="admin-keys-table-body" class="divide-y divide-slate-100"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- WHATSAPP PREVIEW & PAYMENT MODAL -->
+    <div id="whatsapp-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-xl w-full p-6 space-y-5 overflow-y-auto max-h-[90vh]">
+            <div class="flex items-center justify-between border-b pb-3">
+                <h3 class="font-bold text-slate-800 text-lg">💬 WhatsApp Reminder Preview</h3>
+                <button onclick="closeWhatsappModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+            </div>
+            
+            <input type="hidden" id="wa-policy-id">
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Select Template</label>
+                    <select id="wa-template-select" onchange="onWhatsappTemplateChange()" class="w-full p-2.5 border rounded-lg text-sm bg-white font-semibold"></select>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-sky-50 rounded-xl border border-sky-100">
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-sky-800 mb-0.5">Renewal Start Date</label>
+                        <input type="date" id="wa-new-start" onchange="updateWhatsappMessagePreview()" class="w-full p-2 border rounded-lg text-xs bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold uppercase text-sky-800 mb-0.5">Renewal Expiry Date (+1 Yr)</label>
+                        <input type="date" id="wa-new-expiry" onchange="updateWhatsappMessagePreview()" class="w-full p-2 border rounded-lg text-xs bg-white">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Payment URL Link (UPI / Gateway)</label>
+                    <input type="text" id="wa-payment-url" oninput="updateWhatsappMessagePreview()" placeholder="https://rzp.io/l/pay-policy" class="w-full p-2.5 border rounded-lg text-sm font-mono bg-white">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Live Message Preview</label>
+                    <textarea id="wa-message-preview" rows="6" oninput="document.getElementById('wa-custom-msg-edited').value = this.value" class="w-full p-3 border rounded-lg text-xs font-mono bg-slate-50"></textarea>
+                    <input type="hidden" id="wa-custom-msg-edited">
+                </div>
+            </div>
+
+            <div class="flex justify-end space-x-3 pt-3 border-t">
+                <button type="button" onclick="closeWhatsappModal()" class="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg">Cancel</button>
+                <button type="button" onclick="sendWhatsAppMessageConfirmed()" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm">🚀 Open WhatsApp & Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- EDIT CUSTOMER & HISTORY MODAL -->
+    <div id="edit-customer-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full p-6 space-y-6 overflow-y-auto max-h-[90vh]">
+            <div class="flex items-center justify-between border-b pb-4">
+                <h3 class="font-bold text-slate-800 text-lg">✏️ Edit Customer & Policy Details</h3>
+                <button onclick="closeEditCustomerModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+            </div>
+            
+            <form onsubmit="handleUpdatePolicy(event)" class="space-y-6">
+                <input type="hidden" id="edit-policy-id">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Customer Full Name</label>
+                        <input type="text" id="edit-client-name" required class="w-full p-2.5 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Mobile Number</label>
+                        <input type="tel" id="edit-client-phone" required class="w-full p-2.5 border rounded-lg text-sm">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Policy Number</label>
+                        <input type="text" id="edit-policy-number" required class="w-full p-2.5 border rounded-lg text-sm font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Company</label>
+                        <input type="text" id="edit-company" required class="w-full p-2.5 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Vehicle Number</label>
+                        <input type="text" id="edit-vehicle-num" class="w-full p-2.5 border rounded-lg text-sm font-mono uppercase">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">IDV</label>
+                        <input type="text" id="edit-idv" class="w-full p-2.5 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Premium (₹)</label>
+                        <input type="number" id="edit-premium" required class="w-full p-2.5 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Start Date</label>
+                        <input type="date" id="edit-start-date" onchange="autoCalculateEditExpiry()" required class="w-full p-2.5 border rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-500 mb-1">Expiry Date (+1 Year)</label>
+                        <input type="date" id="edit-expiry" required class="w-full p-2.5 border rounded-lg text-sm bg-slate-50">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-amber-50/50 rounded-xl border border-amber-100">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-amber-800 mb-1">Customer Discount (₹)</label>
+                        <input type="number" id="edit-cust-payout" placeholder="0" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-amber-800 mb-1">Agent Net Commission (₹)</label>
+                        <input type="number" id="edit-agent-payout" placeholder="0" class="w-full p-2.5 border rounded-lg text-sm bg-white">
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-3 pt-2 border-t">
+                    <button type="button" onclick="closeEditCustomerModal()" class="px-5 py-2.5 bg-slate-100 text-slate-600 text-sm font-semibold rounded-lg">Cancel</button>
+                    <button type="submit" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold rounded-lg shadow-sm">Save Changes & Log History</button>
+                </div>
+            </form>
+
+            <div class="space-y-3 border-t pt-4">
+                <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-xs uppercase text-slate-500">📜 Policy Audit History & Renewal Logs</h4>
+                    <button onclick="deleteSelectedHistoryLogs()" class="px-3 py-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded text-xs hover:bg-rose-100">🗑️ Delete Selected History</button>
+                </div>
+                <div id="modal-history-list" class="space-y-2 max-h-56 overflow-y-auto p-1"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://rfxasacqssapunsdzgzc.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJmeGFzYWNxc3NhcHVuc2R6Z3pjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI4MzI4MjEsImV4cCI6MjEwODQwODgyMX0.85_tVyeSO8JMOlohxrBYrlYT7X6E4n2cE6Up3QqItgc';
+        let supabaseClient = null;
+
+        if (SUPABASE_URL && window.supabase) {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        }
+
+        let currentUser = null;
+        let expiryFilterDays = 7;
+        const todayStr = new Date().toISOString().split('T')[0];
+        const defaultExpiryStr = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
+
+        let availableGroups = ['Group A', 'Group B', 'Group C', 'Group E'];
+        let registeredUsers = [
+            { name: 'Test Agent', email: 'agent@gmail.com', password: 'agent', role: 'AGENT', group: 'Group A', status: 'Active', createdAt: todayStr, expiryDate: defaultExpiryStr },
+            { name: 'Master Admin', email: 'minibala33ai@gmail.com', password: 'Hock@150998', role: 'ADMIN', group: 'Group A', status: 'Active', createdAt: todayStr, expiryDate: 'Unlimited' }
+        ];
+        let subscriptionKeys = [
+            { key: 'PG-KEY-DEMO99', plan: 'Starter License', amount: 499, status: 'Active' }
+        ];
+        let policies = [];
+        let whatsappTemplates = [
+            { id: 'wt_1', title: 'Default Renewal Reminder', body: 'Hi {client_name},\n\n📌 *Policy Renewal Reminder*\n• Insurer: {company}\n• Policy No: {policy_number}\n• Expiry Date: {new_expiry_date}\n\nPay securely here: {payment_url}\n\nPlease renew on time to avoid policy lapse. Thank you!' },
+            { id: 'wt_2', title: 'Urgent Final Notice', body: 'Dear {client_name}, your policy {policy_number} expires on {new_expiry_date}. Complete your renewal immediately using this payment link: {payment_url}' }
+        ];
+
+        function switchAuthTab(tab) {
+            const isLogin = tab === 'login';
+            document.getElementById('tab-login').className = isLogin ? 'flex-1 pb-3 text-sm font-semibold text-sky-600 border-b-2 border-sky-600' : 'flex-1 pb-3 text-sm font-medium text-slate-400';
+            document.getElementById('tab-register').className = !isLogin ? 'flex-1 pb-3 text-sm font-semibold text-sky-600 border-b-2 border-sky-600' : 'flex-1 pb-3 text-sm font-medium text-slate-400';
+            document.getElementById('form-login').classList.toggle('hidden', !isLogin);
+            document.getElementById('form-register').classList.toggle('hidden', isLogin);
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('-translate-x-full');
+        }
+
+        function toggleMotorFields() {
+            const type = document.getElementById('p-type').value;
+            document.getElementById('motor-fields-box').classList.toggle('hidden', type !== 'Motor Insurance');
+        }
+
+        function autoCalculateExpiry() {
+            const startDateVal = document.getElementById('p-start-date').value;
+            if (!startDateVal) return;
+            const d = new Date(startDateVal);
+            d.setFullYear(d.getFullYear() + 1);
+            document.getElementById('p-expiry').value = d.toISOString().split('T')[0];
+        }
+
+        function autoCalculateEditExpiry() {
+            const startDateVal = document.getElementById('edit-start-date').value;
+            if (!startDateVal) return;
+            const d = new Date(startDateVal);
+            d.setFullYear(d.getFullYear() + 1);
+            document.getElementById('edit-expiry').value = d.toISOString().split('T')[0];
+        }
+
+        async function initApp() {
+            if (supabaseClient) {
+                const { data: groupData } = await supabaseClient.from('groups').select('*');
+                if (groupData && groupData.length > 0) {
+                    availableGroups = groupData.map(g => g.name);
+                }
+
+                const { data, error } = await supabaseClient.from('users').select('*');
+                if (!error && data && data.length > 0) {
+                    registeredUsers = data.map(u => ({
+                        name: u.name,
+                        email: u.email,
+                        password: u.password,
+                        role: u.role || 'AGENT',
+                        group: u.group_name || 'Group A',
+                        status: u.status || 'Active',
+                        createdAt: u.created_at || todayStr,
+                        expiryDate: u.email.toLowerCase() === 'minibala33ai@gmail.com' ? 'Unlimited' : (u.expiry_date || defaultExpiryStr)
+                    }));
+                }
+            } else {
+                const savedGroups = localStorage.getItem('pg_groups');
+                if (savedGroups) availableGroups = JSON.parse(savedGroups);
+
+                const savedUsers = localStorage.getItem('pg_registered_users');
+                if (savedUsers) registeredUsers = JSON.parse(savedUsers);
+            }
+
+            let mainAdmin = registeredUsers.find(u => u.email.toLowerCase() === 'minibala33ai@gmail.com');
+            if (mainAdmin) {
+                mainAdmin.role = 'ADMIN';
+                mainAdmin.status = 'Active';
+                mainAdmin.expiryDate = 'Unlimited';
+            } else {
+                registeredUsers.push({ name: 'Master Admin', email: 'minibala33ai@gmail.com', password: 'Hock@150998', role: 'ADMIN', group: 'Group A', status: 'Active', createdAt: todayStr, expiryDate: 'Unlimited' });
+            }
+            saveUsersToStorageAndCloud();
+            populateGroupDropdowns();
+
+            const savedKeys = localStorage.getItem('pg_subscription_keys');
+            if (savedKeys) subscriptionKeys = JSON.parse(savedKeys);
+
+            const savedTemplates = localStorage.getItem('pg_whatsapp_templates');
+            if (savedTemplates) whatsappTemplates = JSON.parse(savedTemplates);
+
+            const savedUser = localStorage.getItem('pg_user');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                const freshU = registeredUsers.find(u => u.email.toLowerCase() === currentUser.email.toLowerCase());
+                if (freshU) currentUser = freshU;
+                render();
+                fetchPoliciesFromCloud();
+            }
+
+            const badge = document.getElementById('supabase-status-badge');
+            if (supabaseClient) {
+                badge.innerText = '● Supabase Cloud Live';
+                badge.className = 'text-[11px] font-semibold text-emerald-400';
+            } else {
+                badge.innerText = '● Offline / Local Storage';
+                badge.className = 'text-[11px] font-semibold text-rose-400';
+            }
+        }
+
+        function populateGroupDropdowns() {
+            const selects = document.querySelectorAll('.group-select-options, #reg-group');
+            selects.forEach(select => {
+                const currentVal = select.value;
+                select.innerHTML = availableGroups.map(g => `<option value="${g}">${g}</option>`).join('');
+                if (availableGroups.includes(currentVal)) {
+                    select.value = currentVal;
+                }
+            });
+        }
+
+        async function handleCreateGroup(e) {
+            e.preventDefault();
+            if (currentUser.email.toLowerCase() !== 'minibala33ai@gmail.com') {
+                alert('Only Main Admin can create groups.');
+                return;
+            }
+            const groupInput = document.getElementById('new-group-name');
+            const newGroupName = groupInput.value.trim();
+            if (!newGroupName) return;
+
+            if (availableGroups.includes(newGroupName)) {
+                alert('Group already exists!');
+                return;
+            }
+
+            availableGroups.push(newGroupName);
+            localStorage.setItem('pg_groups', JSON.stringify(availableGroups));
+
+            if (supabaseClient) {
+                await supabaseClient.from('groups').insert([{ name: newGroupName }]);
+            }
+
+            populateGroupDropdowns();
+            groupInput.value = '';
+            alert(`Successfully created group: ${newGroupName}`);
+        }
+
+        async function saveUsersToStorageAndCloud() {
+            localStorage.setItem('pg_registered_users', JSON.stringify(registeredUsers));
+            if (supabaseClient) {
+                for (let u of registeredUsers) {
+                    await supabaseClient.from('users').upsert({
+                        email: u.email,
+                        name: u.name,
+                        password: u.password,
+                        role: u.role,
+                        group_name: u.group || 'Group A',
+                        status: u.status,
+                        created_at: u.createdAt,
+                        expiry_date: u.expiryDate === 'Unlimited' ? null : u.expiryDate
+                    }, { onConflict: 'email' });
+                }
+            }
+        }
+
+        async function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim().toLowerCase();
+            const password = document.getElementById('reg-password').value;
+            const group = document.getElementById('reg-group').value;
+            const regKeyInput = document.getElementById('reg-key').value.trim().toUpperCase();
+
+            if (registeredUsers.some(u => u.email.toLowerCase() === email)) {
+                alert('Email address already registered.');
+                switchAuthTab('login');
+                return;
+            }
+
+            const keyObj = subscriptionKeys.find(k => k.key === regKeyInput);
+            if (!keyObj || keyObj.status !== 'Active') {
+                alert('Invalid or already used subscription key! Please contact admin.');
+                return;
+            }
+
+            keyObj.status = 'Used by ' + email;
+            localStorage.setItem('pg_subscription_keys', JSON.stringify(subscriptionKeys));
+
+            const createdAt = new Date().toISOString().split('T')[0];
+            const expiryDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
+
+            const newUser = { name, email, password, role: 'AGENT', group, status: 'Active', createdAt, expiryDate };
+            registeredUsers.push(newUser);
+            await saveUsersToStorageAndCloud();
+
+            currentUser = newUser;
+            localStorage.setItem('pg_user', JSON.stringify(currentUser));
+            render();
+            fetchPoliciesFromCloud();
+            alert('Registration successful!');
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim().toLowerCase();
+            const pass = document.getElementById('login-password').value;
+            const user = registeredUsers.find(u => u.email.toLowerCase() === email && u.password === pass);
+            if (!user) { alert('Invalid email or password.'); return; }
+            if (user.status === 'Inactive') { alert('Your account is currently disabled. Please contact admin.'); return; }
+            currentUser = user;
+            localStorage.setItem('pg_user', JSON.stringify(currentUser));
+            render();
+            fetchPoliciesFromCloud();
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            localStorage.removeItem('pg_user');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('app-container').classList.add('hidden');
+        }
+
+        async function handleAdminCreateUser(e) {
+            e.preventDefault();
+            if (currentUser.email.toLowerCase() !== 'minibala33ai@gmail.com') {
+                alert('Only Main Admin can create new users.');
+                return;
+            }
+
+            const name = document.getElementById('admin-new-name').value.trim();
+            const email = document.getElementById('admin-new-email').value.trim().toLowerCase();
+            const password = document.getElementById('admin-new-pass').value;
+            const role = document.getElementById('admin-new-role').value;
+            const group = document.getElementById('admin-new-group').value;
+
+            if (registeredUsers.some(u => u.email.toLowerCase() === email)) {
+                alert('User with this email already exists!');
+                return;
+            }
+
+            const createdAt = new Date().toISOString().split('T')[0];
+            const expiryDate = email === 'minibala33ai@gmail.com' ? 'Unlimited' : new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
+
+            const newUser = { name, email, password, role, group, status: 'Active', createdAt, expiryDate };
+            registeredUsers.push(newUser);
+            await saveUsersToStorageAndCloud();
+
+            renderAdminAgents();
+            e.target.reset();
+            alert(`Successfully created ${role} account for ${email} in ${group}!`);
+        }
+
+        async function handleGenerateKey(e) {
+            e.preventDefault();
+            if (currentUser.email.toLowerCase() !== 'minibala33ai@gmail.com') {
+                alert('Only Main Admin can generate subscription keys.');
+                return;
+            }
+
+            const plan = document.getElementById('admin-plan-name').value.trim();
+            const amount = parseFloat(document.getElementById('admin-plan-amount').value) || 0;
+            const randomCode = 'PG-KEY-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+            subscriptionKeys.push({ key: randomCode, plan, amount, status: 'Active' });
+            localStorage.setItem('pg_subscription_keys', JSON.stringify(subscriptionKeys));
+            renderAdminKeys();
+            e.target.reset();
+            alert('Generated Key: ' + randomCode);
+        }
+
+        async function updateAgentGroup(index, newGroup) {
+            if (currentUser.email.toLowerCase() !== 'minibala33ai@gmail.com') {
+                alert('Only Main Admin can change user groups.');
+                renderAdminAgents();
+                return;
+            }
+            registeredUsers[index].group = newGroup;
+            await saveUsersToStorageAndCloud();
+            alert(`Updated ${registeredUsers[index].email} to ${newGroup}`);
+            renderAdminAgents();
+        }
+
+        function renderAdminAgents() {
+            const tbody = document.getElementById('admin-agents-table-body');
+            tbody.innerHTML = '';
+            const isMainAdmin = currentUser.email.toLowerCase() === 'minibala33ai@gmail.com';
+
+            registeredUsers.forEach((u, idx) => {
+                const isActive = u.status !== 'Inactive';
+                const isMaster = u.email.toLowerCase() === 'minibala33ai@gmail.com';
+                const expiryDate = isMaster ? 'Unlimited' : (u.expiryDate || 'N/A');
+                const userGroup = u.group || 'Group A';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-bold text-slate-800">${u.name}</td>
+                    <td class="py-3 px-4 font-mono text-xs">${u.email}</td>
+                    <td class="py-3 px-4 font-mono text-xs bg-slate-50 text-slate-600 rounded">${u.password}</td>
+                    <td class="py-3 px-4 font-semibold uppercase text-xs">${u.role || 'AGENT'}</td>
+                    <td class="py-3 px-4">
+                        ${isMainAdmin && !isMaster ? `
+                            <select onchange="updateAgentGroup(${idx}, this.value)" class="p-1 border rounded text-xs bg-white font-semibold">
+                                ${availableGroups.map(g => `<option value="${g}" ${userGroup===g?'selected':''}>${g}</option>`).join('')}
+                            </select>
+                        ` : `<span class="px-2 py-0.5 rounded text-xs font-bold bg-sky-50 text-sky-700">${userGroup}</span>`}
+                    </td>
+                    <td class="py-3 px-4 text-xs font-mono ${isMaster ? 'text-sky-600 font-bold' : 'text-rose-600 font-bold'}">${expiryDate}</td>
+                    <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${isActive ? 'Active' : 'Inactive'}</span></td>
+                    <td class="py-3 px-4 text-right space-x-1">
+                        ${!isMaster && isMainAdmin ? `
+                            <button onclick="toggleUserStatus(${idx})" class="px-2 py-1 ${isActive ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'} border rounded text-xs font-bold">${isActive ? 'Disable' : 'Enable'}</button>
+                            <button onclick="deleteUser(${idx})" class="px-2 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded text-xs font-bold">Delete</button>
+                        ` : '<span class="text-xs text-slate-400">Restricted</span>'}
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function toggleUserStatus(index) {
+            if (currentUser.email.toLowerCase() !== 'minibala33ai@gmail.com') return;
+            if (registeredUsers[index].email.toLowerCase() === 'minibala33ai@gmail.com') return;
+            registeredUsers[index].status = registeredUsers[index].status === 'Inactive' ? 'Active' : 'Inactive';
+            await saveUsersToStorageAndCloud();
+            renderAdminAgents();
+        }
+
+        async function deleteUser(index) {
+            if (currentUser.email.toLowerCase() !== 'minibala33ai@gmail.com') return;
+            if (registeredUsers[index].email.toLowerCase() === 'minibala33ai@gmail.com') {
+                alert('Cannot delete Master Admin!');
+                return;
+            }
+            if (confirm(`Permanently delete account for ${registeredUsers[index].email}?`)) {
+                const emailToDelete = registeredUsers[index].email;
+                registeredUsers.splice(index, 1);
+                await saveUsersToStorageAndCloud();
+                if (supabaseClient) {
+                    await supabaseClient.from('users').delete().eq('email', emailToDelete);
+                }
+                renderAdminAgents();
+            }
+        }
+
+        function renderAdminKeys() {
+            const tbody = document.getElementById('admin-keys-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            if (subscriptionKeys.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">No subscription keys generated yet.</td></tr>`;
+                return;
+            }
+            subscriptionKeys.forEach((k, index) => {
+                const isActive = k.status === 'Active';
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-mono font-bold text-sky-700">${k.key}</td>
+                    <td class="py-3 px-4 font-medium">${k.plan}</td>
+                    <td class="py-3 px-4 font-semibold text-emerald-600">₹${k.amount}</td>
+                    <td class="py-3 px-4 text-center"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">${k.status}</span></td>
+                    <td class="py-3 px-4 text-right space-x-2">
+                        <button onclick="navigator.clipboard.writeText('${k.key}'); alert('Copied key: ${k.key}');" class="px-2 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded text-xs font-bold">Copy</button>
+                        <button onclick="deleteKey(${index})" class="px-2 py-1 bg-rose-50 text-rose-600 border border-rose-200 rounded text-xs font-bold">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function deleteKey(index) {
+            if (currentUser.email.toLowerCase() !== 'minibala33ai@gmail.com') return;
+            subscriptionKeys.splice(index, 1);
+            localStorage.setItem('pg_subscription_keys', JSON.stringify(subscriptionKeys));
+            renderAdminKeys();
+        }
+
+        async function fetchPoliciesFromCloud() {
+            if (!supabaseClient || !currentUser) return;
+            let query = supabaseClient.from('policies').select('*');
+            const isMainAdmin = currentUser.email.toLowerCase() === 'minibala33ai@gmail.com';
+            const isAdmin = isMainAdmin || currentUser.role === 'ADMIN';
+
+            if (!isAdmin) {
+                query = query.eq('agent_email', currentUser.email);
+            }
+            const { data, error } = await query;
+            if (!error && data) {
+                policies = data;
+                populateAgentFilterDropdowns();
+                renderExpiringTable();
+                renderCustomerTable();
+                renderFinancialAnalysis();
+                renderWhatsappTemplatesList();
+            }
+        }
+
+        function populateAgentFilterDropdowns() {
+            const selects = [document.getElementById('agent-filter-select'), document.getElementById('fin-agent-select')];
+            const isMainAdmin = currentUser.email.toLowerCase() === 'minibala33ai@gmail.com';
+            const isAdmin = isMainAdmin || currentUser.role === 'ADMIN';
+
+            selects.forEach(select => {
+                if (!select) return;
+                if (isAdmin) {
+                    if (select.id === 'fin-agent-select') {
+                        document.getElementById('fin-agent-filter-wrapper').classList.remove('hidden');
+                    } else {
+                        select.classList.remove('hidden');
+                    }
+                    let validAgents = registeredUsers;
+                    if (!isMainAdmin) {
+                        validAgents = registeredUsers.filter(u => u.group === currentUser.group);
+                    }
+                    const validEmails = validAgents.map(u => u.email.toLowerCase());
+                    const uniqueAgents = [...new Set(policies.filter(p => isMainAdmin || validEmails.includes(p.agent_email.toLowerCase())).map(p => p.agent_email))];
+                    
+                    select.innerHTML = `<option value="ALL">All Accessible Agents</option>` + uniqueAgents.map(email => `<option value="${email}">${email}</option>`).join('');
+                } else {
+                    if (select.id === 'fin-agent-select') {
+                        document.getElementById('fin-agent-filter-wrapper').classList.add('hidden');
+                    } else {
+                        select.classList.add('hidden');
+                    }
+                }
+            });
+        }
+
+        async function handleSavePolicy(e) {
+            e.preventDefault();
+            const type = document.getElementById('p-type').value;
+            const startDate = document.getElementById('p-start-date').value;
+            const expiryDate = document.getElementById('p-expiry').value;
+            const company = document.getElementById('p-company').value.trim();
+            const policyNumber = document.getElementById('p-number').value.trim();
+            const vehicleNumber = type === 'Motor Insurance' ? document.getElementById('p-vehicle-num').value.toUpperCase().trim() : null;
+            const idv = document.getElementById('p-idv').value.trim();
+            const premium = parseFloat(document.getElementById('p-premium').value) || 0;
+            const custPayout = parseFloat(document.getElementById('p-cust-payout').value) || 0;
+            const agentPayout = parseFloat(document.getElementById('p-agent-payout').value) || 0;
+
+            const newPolicy = {
+                id: 'p_' + Date.now(),
+                agent_email: currentUser.email,
+                client_name: document.getElementById('p-client-name').value.trim(),
+                client_phone: document.getElementById('p-client-phone').value.trim(),
+                policy_number: policyNumber,
+                company: company,
+                type: type,
+                sub_type: type === 'Motor Insurance' ? document.getElementById('p-sub-type').value : null,
+                vehicle_number: vehicleNumber,
+                idv: idv,
+                premium: premium,
+                customer_payout: custPayout,
+                agent_payout: agentPayout,
+                start_date: startDate,
+                expiry: expiryDate,
+                status: 'Active',
+                reminded_date: null,
+                history: [{ 
+                    dateAdded: new Date().toISOString().split('T')[0], 
+                    action: `Policy Created`, 
+                    startDate: startDate, 
+                    expiryDate: expiryDate,
+                    company: company,
+                    policyNumber: policyNumber,
+                    vehicleNumber: vehicleNumber,
+                    idv: idv,
+                    premium: premium,
+                    customerPayout: custPayout,
+                    agentPayout: agentPayout
+                }]
+            };
+
+            if (supabaseClient) {
+                const { error } = await supabaseClient.from('policies').insert([newPolicy]);
+                if (!error) {
+                    alert('Policy saved and synced to your vault!');
+                    document.getElementById('add-policy-form').reset();
+                    toggleMotorFields();
+                    fetchPoliciesFromCloud();
+                    switchView('expiring');
+                } else { alert('Cloud sync error: ' + error.message); }
+            } else {
+                policies.push(newPolicy);
+                renderExpiringTable();
+                renderCustomerTable();
+                switchView('expiring');
+            }
+        }
+
+        // --- WHATSAPP TEMPLATES & POPUP ---
+        function handleSaveWhatsappTemplate(e) {
+            e.preventDefault();
+            const title = document.getElementById('wt-title').value.trim();
+            const body = document.getElementById('wt-body').value.trim();
+            if (!title || !body) return;
+
+            const newTpl = { id: 'wt_' + Date.now(), title, body };
+            whatsappTemplates.push(newTpl);
+            localStorage.setItem('pg_whatsapp_templates', JSON.stringify(whatsappTemplates));
+            renderWhatsappTemplatesList();
+            e.target.reset();
+            alert('WhatsApp template saved successfully!');
+        }
+
+        function renderWhatsappTemplatesList() {
+            const container = document.getElementById('whatsapp-templates-list');
+            if (!container) return;
+            container.innerHTML = '';
+            whatsappTemplates.forEach((t, idx) => {
+                const card = document.createElement('div');
+                card.className = "p-4 border rounded-xl bg-slate-50 space-y-2 flex flex-col justify-between";
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <h5 class="font-bold text-slate-800 text-sm">${t.title}</h5>
+                            <button onclick="deleteWhatsappTemplate(${idx})" class="text-rose-500 hover:text-rose-700 text-xs font-bold">🗑️ Delete</button>
+                        </div>
+                        <p class="text-xs font-mono text-slate-600 bg-white p-3 rounded-lg border whitespace-pre-wrap">${t.body}</p>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function deleteWhatsappTemplate(index) {
+            if (whatsappTemplates.length <= 1) {
+                alert('You must keep at least one template.');
+                return;
+            }
+            whatsappTemplates.splice(index, 1);
+            localStorage.setItem('pg_whatsapp_templates', JSON.stringify(whatsappTemplates));
+            renderWhatsappTemplatesList();
+        }
+
+        function openWhatsappModal(policyId) {
+            const p = policies.find(item => item.id === policyId);
+            if (!p) return;
+            document.getElementById('wa-policy-id').value = p.id;
+            
+            // Populate template dropdown
+            const tplSelect = document.getElementById('wa-template-select');
+            tplSelect.innerHTML = whatsappTemplates.map(t => `<option value="${t.id}">${t.title}</option>`).join('');
+
+            // Automatically populate renewal dates based on active policy start & expiry
+            let defStart = p.expiry; // typically next start is current expiry
+            let d = new Date(defStart);
+            d.setFullYear(d.getFullYear() + 1);
+            let defExpiry = d.toISOString().split('T')[0];
+
+            document.getElementById('wa-new-start').value = defStart;
+            document.getElementById('wa-new-expiry').value = defExpiry;
+            document.getElementById('wa-payment-url').value = `https://rzp.io/l/pay-${p.policy_number}`;
+
+            updateWhatsappMessagePreview();
+            document.getElementById('whatsapp-modal').classList.remove('hidden');
+        }
+
+        function closeWhatsappModal() {
+            document.getElementById('whatsapp-modal').classList.add('hidden');
+        }
+
+        function onWhatsappTemplateChange() {
+            updateWhatsappMessagePreview();
+        }
+
+        function updateWhatsappMessagePreview() {
+            const policyId = document.getElementById('wa-policy-id').value;
+            const p = policies.find(item => item.id === policyId);
+            if (!p) return;
+
+            const tplId = document.getElementById('wa-template-select').value;
+            const tpl = whatsappTemplates.find(t => t.id === tplId) || whatsappTemplates[0];
+            if (!tpl) return;
+
+            const newStart = document.getElementById('wa-new-start').value || p.expiry;
+            const newExpiry = document.getElementById('wa-new-expiry').value || '';
+            const paymentUrl = document.getElementById('wa-payment-url').value || '';
+
+            let msg = tpl.body
+                .replace(/{client_name}/g, p.client_name)
+                .replace(/{company}/g, p.company)
+                .replace(/{policy_number}/g, p.policy_number)
+                .replace(/{vehicle_number}/g, p.vehicle_number || 'N/A')
+                .replace(/{idv}/g, p.idv || 'N/A')
+                .replace(/{new_start_date}/g, newStart)
+                .replace(/{new_expiry_date}/g, newExpiry)
+                .replace(/{payment_url}/g, paymentUrl);
+
+            document.getElementById('wa-message-preview').value = msg;
+            document.getElementById('wa-custom-msg-edited').value = msg;
+        }
+
+        function sendWhatsAppMessageConfirmed() {
+            const policyId = document.getElementById('wa-policy-id').value;
+            const p = policies.find(item => item.id === policyId);
+            if (!p) return;
+
+            const finalMsg = document.getElementById('wa-custom-msg-edited').value;
+            const waUrl = `https://wa.me/91${p.client_phone}?text=${encodeURIComponent(finalMsg)}`;
+            window.open(waUrl, '_blank');
+            closeWhatsappModal();
+        }
+
+        // --- MARK REMINDED & EXPIRY FILTERS ---
+        async function toggleMarkReminded(id) {
+            const p = policies.find(item => item.id === id);
+            if (!p) return;
+            
+            const today = new Date().toISOString().split('T')[0];
+            // If already reminded today, toggle off, else set reminded_date to today
+            if (p.reminded_date === today) {
+                p.reminded_date = null;
+            } else {
+                p.reminded_date = today;
+            }
+
+            if (supabaseClient) {
+                await supabaseClient.from('policies').update({ reminded_date: p.reminded_date }).eq('id', id);
+            }
+            renderExpiringTable();
+        }
+
+        function setExpiryFilter(days) {
+            expiryFilterDays = days;
+            const customBox = document.getElementById('custom-expiry-date-box');
+            if (days === 'custom') {
+                customBox.classList.remove('hidden');
+            } else {
+                customBox.classList.add('hidden');
+            }
+
+            document.querySelectorAll('.filter-btn').forEach(b => {
+                if (b.dataset.days == String(days)) {
+                    b.className = 'filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-sky-600 text-white shrink-0';
+                } else {
+                    b.className = 'filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 shrink-0';
+                }
+            });
+            renderExpiringTable();
+        }
+
+        function clearCustomExpiryDates() {
+            document.getElementById('custom-exp-start').value = '';
+            document.getElementById('custom-exp-end').value = '';
+            setExpiryFilter(7);
+        }
+
+        function renderExpiringTable() {
+            const tbody = document.getElementById('expiring-table-body');
+            const mobileCardsContainer = document.getElementById('expiring-mobile-cards-container');
+            if (!tbody || !mobileCardsContainer) return;
+
+            tbody.innerHTML = '';
+            mobileCardsContainer.innerHTML = '';
+
+            const today = new Date(); today.setHours(0,0,0,0);
+            const isMainAdmin = currentUser.email.toLowerCase() === 'minibala33ai@gmail.com';
+            const isAdmin = isMainAdmin || currentUser.role === 'ADMIN';
+
+            let allowedEmails = [];
+            if (isMainAdmin) {
+                allowedEmails = policies.map(p => p.agent_email.toLowerCase());
+            } else if (isAdmin) {
+                const groupAgents = registeredUsers.filter(u => u.group === currentUser.group);
+                allowedEmails = groupAgents.map(u => u.email.toLowerCase());
+            } else {
+                allowedEmails = [currentUser.email.toLowerCase()];
+            }
+
+            // Auto-reset reminded date if reminder was yesterday or earlier
+            const todayStrIso = today.toISOString().split('T')[0];
+            policies.forEach(p => {
+                if (p.reminded_date && p.reminded_date < todayStrIso) {
+                    p.reminded_date = null;
+                }
+            });
+
+            const filtered = policies.filter(p => {
+                if (p.status === 'Inactive') return false;
+                if (!allowedEmails.includes(p.agent_email.toLowerCase())) return false;
+                const exp = new Date(p.expiry);
+                
+                if (expiryFilterDays === 'custom') {
+                    const startVal = document.getElementById('custom-exp-start').value;
+                    const endVal = document.getElementById('custom-exp-end').value;
+                    if (!startVal || !endVal) return false;
+                    return p.expiry >= startVal && p.expiry <= endVal;
+                } else {
+                    const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+                    return diffDays >= 0 && diffDays <= expiryFilterDays;
+                }
+            });
+
+            // Calculate totals for filtered radar policies
+            let totalPrem = 0, totalCustP = 0, totalAgentP = 0;
+            filtered.forEach(p => {
+                totalPrem += parseFloat(p.premium || 0);
+                totalCustP += parseFloat(p.customer_payout || 0);
+                totalAgentP += parseFloat(p.agent_payout || 0);
+            });
+
+            document.getElementById('radar-total-premium').innerText = '₹' + totalPrem.toLocaleString('en-IN');
+            document.getElementById('radar-total-cust-payout').innerText = '₹' + totalCustP.toLocaleString('en-IN');
+            document.getElementById('radar-total-agent-payout').innerText = '₹' + totalAgentP.toLocaleString('en-IN');
+
+            if (filtered.length === 0) {
+                const emptyHtml = `<tr><td colspan="6" class="py-8 text-center text-slate-400 text-sm">No policies matching the selected expiry filter.</td></tr>`;
+                tbody.innerHTML = emptyHtml;
+                mobileCardsContainer.innerHTML = `<div class="p-6 text-center text-slate-400 bg-white rounded-xl border text-sm">No policies matching the selected expiry filter.</div>`;
+                document.getElementById('expiring-badge').innerText = 0;
+                return;
+            }
+
+            filtered.forEach(p => {
+                const isRemindedToday = p.reminded_date === todayStrIso;
+                const rowBgClass = isRemindedToday ? 'bg-emerald-50/80 border-emerald-200' : 'hover:bg-slate-50';
+
+                // Desktop Table Row
+                const tr = document.createElement('tr');
+                tr.className = `${rowBgClass} transition-all`;
+                tr.innerHTML = `
+                    <td class="py-3.5 px-4 font-bold text-slate-800">
+                        ${p.client_name}
+                        <div class="text-xs font-normal text-slate-500">+91 ${p.client_phone}</div>
+                        ${isRemindedToday ? '<span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 text-white mt-1">✓ Reminded Today</span>' : ''}
+                    </td>
+                    <td class="py-3.5 px-4">
+                        <div class="font-semibold text-slate-700">${p.policy_number}</div>
+                        <div class="text-xs text-sky-600 font-bold">${p.company} • ${p.type} ${p.sub_type ? '(' + p.sub_type + ')' : ''}</div>
+                        ${p.vehicle_number ? `<div class="text-xs font-mono font-bold bg-slate-100 inline-block px-1.5 py-0.5 rounded mt-0.5">${p.vehicle_number}</div>` : ''}
+                    </td>
+                    <td class="py-3.5 px-4 font-medium text-slate-700">${p.idv || 'N/A'}</td>
+                    <td class="py-3.5 px-4 font-semibold text-slate-800">
+                        <div class="text-xs text-slate-500">Start: ${p.start_date || 'N/A'}</div>
+                        <div class="text-xs font-bold text-rose-600">Expiry: ${p.expiry}</div>
+                    </td>
+                    <td class="py-3.5 px-4 text-center">
+                        <span class="text-xs font-semibold text-rose-600 block">Cust: ₹${p.customer_payout}</span>
+                        <span class="text-xs font-semibold text-emerald-600 block">Agent: ₹${p.agent_payout}</span>
+                    </td>
+                    <td class="py-3.5 px-4 text-right space-x-1 whitespace-nowrap">
+                        <a href="tel:${p.client_phone}" class="px-2 py-1.5 bg-sky-50 text-sky-700 border border-sky-200 font-bold rounded text-xs inline-block">📞 Call</a>
+                        <button onclick="openWhatsappModal('${p.id}')" class="px-2 py-1.5 bg-emerald-600 text-white font-bold rounded text-xs inline-block">💬 WhatsApp</button>
+                        <button onclick="toggleMarkReminded('${p.id}')" class="px-2 py-1.5 ${isRemindedToday ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'} font-bold rounded text-xs">🔔 ${isRemindedToday ? 'Reminded' : 'Mark Reminded'}</button>
+                        <button onclick="openEditCustomerModal('${p.id}')" class="px-2 py-1.5 bg-slate-100 text-slate-700 font-bold rounded text-xs">Edit</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+
+                // Mobile Card View
+                const card = document.createElement('div');
+                card.className = `${rowBgClass} p-4 rounded-xl shadow-sm border space-y-3`;
+                card.innerHTML = `
+                    <div class="flex justify-between items-start border-b pb-2">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-base">${p.client_name}</h4>
+                            <p class="text-xs font-mono text-slate-500">+91 ${p.client_phone}</p>
+                        </div>
+                        ${isRemindedToday ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-600 text-white">✓ Reminded Today</span>' : '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Expiring Soon</span>'}
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div><strong class="text-slate-400">Policy No:</strong> <span class="font-mono font-semibold">${p.policy_number}</span></div>
+                        <div><strong class="text-slate-400">Insurer:</strong> <span class="font-semibold text-sky-600">${p.company}</span></div>
+                        <div><strong class="text-slate-400">Type:</strong> <span>${p.type} ${p.sub_type ? '('+p.sub_type+')' : ''}</span></div>
+                        <div><strong class="text-slate-400">Vehicle:</strong> <span class="font-mono">${p.vehicle_number || 'N/A'}</span></div>
+                        <div><strong class="text-slate-400">Start:</strong> <span>${p.start_date || 'N/A'}</span></div>
+                        <div><strong class="text-slate-400">Expiry:</strong> <span class="text-rose-600 font-bold">${p.expiry}</span></div>
+                    </div>
+                    <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg text-xs">
+                        <div><span class="text-slate-400">Premium:</span> <strong class="text-slate-800">₹${p.premium}</strong></div>
+                        <div><span class="text-rose-600">Cust Payout:</span> <strong class="text-rose-700">₹${p.customer_payout}</strong></div>
+                        <div><span class="text-emerald-600">Agent Comm:</span> <strong class="text-emerald-700">₹${p.agent_payout}</strong></div>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 pt-1 border-t">
+                        <a href="tel:${p.client_phone}" class="flex-1 py-2 bg-sky-50 text-sky-700 border border-sky-200 font-bold rounded-lg text-center text-xs">📞 Call</a>
+                        <button onclick="openWhatsappModal('${p.id}')" class="flex-1 py-2 bg-emerald-600 text-white font-bold rounded-lg text-center text-xs">💬 WhatsApp</button>
+                        <button onclick="toggleMarkReminded('${p.id}')" class="flex-1 py-2 ${isRemindedToday ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'} font-bold rounded-lg text-center text-xs">🔔 ${isRemindedToday ? 'Reminded' : 'Mark Reminded'}</button>
+                        <button onclick="openEditCustomerModal('${p.id}')" class="py-2 px-3 bg-slate-100 text-slate-700 font-bold rounded-lg text-xs">Edit</button>
+                    </div>
+                `;
+                mobileCardsContainer.appendChild(card);
+            });
+            document.getElementById('expiring-badge').innerText = filtered.length;
+        }
+
+        // --- FINANCIAL ANALYSIS ---
+        function onFinancialFilterChange() {
+            const filterType = document.getElementById('fin-filter-type').value;
+            const customDatesBox = document.getElementById('fin-custom-dates');
+            if (filterType === 'custom') {
+                customDatesBox.classList.remove('hidden');
+            } else {
+                customDatesBox.classList.add('hidden');
+            }
+            renderFinancialAnalysis();
+        }
+
+        function renderFinancialAnalysis() {
+            const tbody = document.getElementById('fin-transactions-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            const filterType = document.getElementById('fin-filter-type').value;
+            const agentFilterVal = document.getElementById('fin-agent-select') ? document.getElementById('fin-agent-select').value : 'ALL';
+            
+            const isMainAdmin = currentUser.email.toLowerCase() === 'minibala33ai@gmail.com';
+            const isAdmin = isMainAdmin || currentUser.role === 'ADMIN';
+
+            let allowedEmails = [];
+            if (isMainAdmin) {
+                allowedEmails = policies.map(p => p.agent_email.toLowerCase());
+            } else if (isAdmin) {
+                const groupAgents = registeredUsers.filter(u => u.group === currentUser.group);
+                allowedEmails = groupAgents.map(u => u.email.toLowerCase());
+            } else {
+                allowedEmails = [currentUser.email.toLowerCase()];
+            }
+
+            const now = new Date();
+            let startDate = '', endDate = '';
+
+            if (filterType === 'month') {
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+            } else if (filterType === 'last_month') {
+                startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString().split('T')[0];
+                endDate = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+            } else if (filterType === 'year') {
+                startDate = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+                endDate = new Date(now.getFullYear(), 11, 31).toISOString().split('T')[0];
+            } else if (filterType === 'custom') {
+                startDate = document.getElementById('fin-start-date').value;
+                endDate = document.getElementById('fin-end-date').value;
+            }
+
+            const filtered = policies.filter(p => {
+                if (!allowedEmails.includes(p.agent_email.toLowerCase())) return false;
+                if (isAdmin && agentFilterVal !== 'ALL' && p.agent_email !== agentFilterVal) return false;
+                
+                const pDate = p.start_date || todayStr;
+                if (startDate && endDate) {
+                    return pDate >= startDate && pDate <= endDate;
+                }
+                return true;
+            });
+
+            let totalPrem = 0, totalCustP = 0, totalAgentP = 0;
+            filtered.forEach(p => {
+                totalPrem += parseFloat(p.premium || 0);
+                totalCustP += parseFloat(p.customer_payout || 0);
+                totalAgentP += parseFloat(p.agent_payout || 0);
+            });
+
+            document.getElementById('fin-total-premium').innerText = '₹' + totalPrem.toLocaleString('en-IN');
+            document.getElementById('fin-total-cust-payout').innerText = '₹' + totalCustP.toLocaleString('en-IN');
+            document.getElementById('fin-total-agent-payout').innerText = '₹' + totalAgentP.toLocaleString('en-IN');
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-slate-400 text-sm">No transactions found for the selected period / agent.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50';
+                tr.innerHTML = `
+                    <td class="py-3 px-4 font-bold text-slate-800">${p.client_name} <div class="text-[10px] text-slate-400 font-mono">Agent: ${p.agent_email}</div></td>
+                    <td class="py-3 px-4"><span class="font-semibold">${p.company}</span> - <span class="font-mono text-xs">${p.policy_number}</span></td>
+                    <td class="py-3 px-4 text-xs font-mono">${p.start_date || 'N/A'}</td>
+                    <td class="py-3 px-4 font-semibold text-slate-700">₹${p.premium || 0}</td>
+                    <td class="py-3 px-4 font-semibold text-amber-600">₹${p.customer_payout || 0}</td>
+                    <td class="py-3 px-4 text-right font-bold text-emerald-600">₹${p.agent_payout || 0}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // --- CUSTOMER VAULT ---
+        function renderCustomerTable() {
+            const tbody = document.getElementById('customers-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            const query = (document.getElementById('customer-search-input').value || '').toLowerCase();
+            const statusFilter = document.getElementById('status-filter-select').value;
+            const agentFilterSelect = document.getElementById('agent-filter-select');
+            const agentFilterVal = agentFilterSelect ? agentFilterSelect.value : 'ALL';
+            
+            const isMainAdmin = currentUser.email.toLowerCase() === 'minibala33ai@gmail.com';
+            const isAdmin = isMainAdmin || currentUser.role === 'ADMIN';
+
+            let allowedEmails = [];
+            if (isMainAdmin) {
+                allowedEmails = policies.map(p => p.agent_email.toLowerCase());
+            } else if (isAdmin) {
+                const groupAgents = registeredUsers.filter(u => u.group === currentUser.group);
+                allowedEmails = groupAgents.map(u => u.email.toLowerCase());
+            } else {
+                allowedEmails = [currentUser.email.toLowerCase()];
+            }
+
+            const filtered = policies.filter(p => {
+                if (!allowedEmails.includes(p.agent_email.toLowerCase())) return false;
+                if (isAdmin && agentFilterVal !== 'ALL' && p.agent_email !== agentFilterVal) return false;
+
+                const matchesQuery = p.client_name.toLowerCase().includes(query) || p.client_phone.includes(query) || (p.vehicle_number || '').toLowerCase().includes(query);
+                let matchesStatus = true;
+                if (statusFilter === 'Active') matchesStatus = p.status !== 'Inactive';
+                if (statusFilter === 'Inactive') matchesStatus = p.status === 'Inactive';
+                return matchesQuery && matchesStatus;
+            });
+
+            filtered.forEach(p => {
+                const isActive = p.status !== 'Inactive';
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50 transition-all';
+                tr.innerHTML = `
+                    <td class="py-3.5 px-3 text-center"><input type="checkbox" class="customer-checkbox" value="${p.id}"></td>
+                    <td class="py-3.5 px-4 font-bold">${p.client_name} <div class="text-[10px] text-slate-400 font-mono">Agent: ${p.agent_email}</div></td>
+                    <td class="py-3.5 px-4 font-mono text-xs">+91 ${p.client_phone}</td>
+                    <td class="py-3.5 px-4">${p.company} - ${p.policy_number} ${p.vehicle_number ? '('+p.vehicle_number+')' : ''}</td>
+                    <td class="py-3.5 px-4">${p.idv || '-'}</td>
+                    <td class="py-3.5 px-4 font-semibold text-xs">
+                        <div>Start: ${p.start_date || 'N/A'}</div>
+                        <div class="text-rose-600 font-bold">Expiry: ${p.expiry}</div>
+                    </td>
+                    <td class="py-3.5 px-4 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${isActive ? 'Active' : 'Inactive'}</span>
+                    </td>
+                    <td class="py-3.5 px-4 text-center text-xs font-bold">₹${p.customer_payout} / ₹${p.agent_payout}</td>
+                    <td class="py-3.5 px-4 text-right space-x-1 whitespace-nowrap">
+                        <a href="tel:${p.client_phone}" class="px-2 py-1 bg-sky-50 text-sky-700 border border-sky-200 font-bold rounded text-xs inline-block">Call</a>
+                        <button onclick="openWhatsappModal('${p.id}')" class="px-2 py-1 bg-emerald-600 text-white font-bold rounded text-xs inline-block">WhatsApp</button>
+                        <button onclick="toggleCustomerActiveStatus('${p.id}')" class="px-2 py-1 ${isActive ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'} font-bold rounded text-xs">${isActive ? 'Disable' : 'Enable'}</button>
+                        <button onclick="openEditCustomerModal('${p.id}')" class="px-2 py-1 bg-slate-100 font-bold rounded text-xs">Edit</button>
+                        <button onclick="deletePolicy('${p.id}')" class="px-2 py-1 bg-rose-50 text-rose-600 border border-rose-200 font-bold rounded text-xs">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function toggleCustomerActiveStatus(id) {
+            const p = policies.find(item => item.id === id);
+            if (!p) return;
+            const newStatus = p.status === 'Inactive' ? 'Active' : 'Inactive';
+            p.status = newStatus;
+
+            if (supabaseClient) {
+                await supabaseClient.from('policies').update({ status: newStatus }).eq('id', id);
+            }
+            renderExpiringTable();
+            renderCustomerTable();
+        }
+
+        async function deletePolicy(id) {
+            if (confirm('Delete this policy permanently?')) {
+                if (supabaseClient) {
+                    await supabaseClient.from('policies').delete().eq('id', id);
+                }
+                policies = policies.filter(p => p.id !== id);
+                renderExpiringTable();
+                renderCustomerTable();
+                renderFinancialAnalysis();
+            }
+        }
+
+        function openEditCustomerModal(id) {
+            const p = policies.find(item => item.id === id);
+            if (!p) return;
+            document.getElementById('edit-policy-id').value = p.id;
+            document.getElementById('edit-client-name').value = p.client_name || '';
+            document.getElementById('edit-client-phone').value = p.client_phone || '';
+            document.getElementById('edit-policy-number').value = p.policy_number || '';
+            document.getElementById('edit-company').value = p.company || '';
+            document.getElementById('edit-vehicle-num').value = p.vehicle_number || '';
+            document.getElementById('edit-idv').value = p.idv || '';
+            document.getElementById('edit-premium').value = p.premium || 0;
+            document.getElementById('edit-start-date').value = p.start_date || '';
+            document.getElementById('edit-expiry').value = p.expiry || '';
+            document.getElementById('edit-cust-payout').value = p.customer_payout || 0;
+            document.getElementById('edit-agent-payout').value = p.agent_payout || 0;
+
+            renderModalHistoryList(p);
+            document.getElementById('edit-customer-modal').classList.remove('hidden');
+        }
+
+        function renderModalHistoryList(p) {
+            const listContainer = document.getElementById('modal-history-list');
+            listContainer.innerHTML = '';
+            
+            if (!p.history || p.history.length === 0) {
+                listContainer.innerHTML = `<div class="text-xs text-slate-400 py-2">No history logs recorded yet.</div>`;
+                return;
+            }
+
+            p.history.forEach((h, index) => {
+                const prev = index > 0 ? p.history[index - 1] : null;
+
+                const diffClass = (val, prevVal) => {
+                    if (prev !== undefined && prevVal !== undefined && String(val) !== String(prevVal)) {
+                        return 'bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-300';
+                    }
+                    return 'text-slate-700';
+                };
+
+                const item = document.createElement('div');
+                item.className = "p-3 border rounded-xl text-xs bg-white shadow-sm space-y-1.5";
+                item.innerHTML = `
+                    <div class="flex items-center justify-between border-b pb-1.5">
+                        <div class="flex items-center space-x-2">
+                            <input type="checkbox" class="history-item-checkbox" value="${index}">
+                            <span class="font-bold text-slate-800">${h.action || 'Policy Change'}</span>
+                        </div>
+                        <span class="text-[10px] text-slate-400 font-mono">Logged: ${h.dateAdded || h.renewedAt || 'N/A'}</span>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[11px]">
+                        <div><strong>Policy No:</strong> <span class="${diffClass(h.policyNumber, prev ? prev.policyNumber : null)}">${h.policyNumber || 'N/A'}</span></div>
+                        <div><strong>Company:</strong> <span class="${diffClass(h.company, prev ? prev.company : null)}">${h.company || 'N/A'}</span></div>
+                        <div><strong>Vehicle:</strong> <span class="${diffClass(h.vehicleNumber, prev ? prev.vehicleNumber : null)}">${h.vehicleNumber || 'N/A'}</span></div>
+                        <div><strong>IDV:</strong> <span class="${diffClass(h.idv, prev ? prev.idv : null)}">${h.idv || 'N/A'}</span></div>
+                        <div><strong>Premium:</strong> <span class="${diffClass(h.premium, prev ? prev.premium : null)}">₹${h.premium || 0}</span></div>
+                        <div><strong>Duration:</strong> <span class="${diffClass(h.startDate + ' ' + h.expiryDate, prev ? (prev.startDate + ' ' + prev.expiryDate) : null)}">${h.startDate || 'N/A'} ➔ ${h.expiryDate || 'N/A'}</span></div>
+                    </div>
+                    <div class="flex justify-between items-center text-[11px] pt-1 border-t border-slate-100">
+                        <span class="font-semibold ${diffClass(h.customerPayout, prev ? prev.customerPayout : null)}">Cust Discount: ₹${h.customerPayout || 0}</span>
+                        <span class="font-semibold ${diffClass(h.agentPayout, prev ? prev.agentPayout : null)}">Agent Commission: ₹${h.agentPayout || 0}</span>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        async function deleteSelectedHistoryLogs() {
+            const id = document.getElementById('edit-policy-id').value;
+            const p = policies.find(item => item.id === id);
+            if (!p || !p.history) return;
+
+            const selectedCheckboxes = document.querySelectorAll('.history-item-checkbox:checked');
+            if (selectedCheckboxes.length === 0) {
+                alert('Please select at least one history item to delete.');
+                return;
+            }
+
+            const indicesToDelete = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+            p.history = p.history.filter((_, idx) => !indicesToDelete.includes(idx));
+
+            if (supabaseClient) {
+                await supabaseClient.from('policies').update({ history: p.history }).eq('id', id);
+            }
+
+            renderModalHistoryList(p);
+            alert('Selected history logs deleted!');
+        }
+
+        function closeEditCustomerModal() {
+            document.getElementById('edit-customer-modal').classList.add('hidden');
+        }
+
+        async function handleUpdatePolicy(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-policy-id').value;
+            const p = policies.find(item => item.id === id);
+            if (!p) return;
+
+            const newName = document.getElementById('edit-client-name').value.trim();
+            const newPhone = document.getElementById('edit-client-phone').value.trim();
+            const newNumber = document.getElementById('edit-policy-number').value.trim();
+            const newCompany = document.getElementById('edit-company').value.trim();
+            const newVehicle = document.getElementById('edit-vehicle-num').value.toUpperCase().trim();
+            const newIdv = document.getElementById('edit-idv').value.trim();
+            const newPremium = parseFloat(document.getElementById('edit-premium').value) || 0;
+            const newStart = document.getElementById('edit-start-date').value;
+            const newExpiry = document.getElementById('edit-expiry').value;
+            const newCustPayout = parseFloat(document.getElementById('edit-cust-payout').value) || 0;
+            const newAgentPayout = parseFloat(document.getElementById('edit-agent-payout').value) || 0;
+
+            p.client_name = newName;
+            p.client_phone = newPhone;
+            p.policy_number = newNumber;
+            p.company = newCompany;
+            p.vehicle_number = newVehicle;
+            p.idv = newIdv;
+            p.premium = newPremium;
+            p.start_date = newStart;
+            p.expiry = newExpiry;
+            p.customer_payout = newCustPayout;
+            p.agent_payout = newAgentPayout;
+
+            const historyLog = p.history || [];
+            historyLog.push({
+                dateAdded: new Date().toISOString().split('T')[0],
+                action: `Policy Updated / Renewed`,
+                company: newCompany,
+                policyNumber: newNumber,
+                vehicleNumber: newVehicle,
+                idv: newIdv,
+                premium: newPremium,
+                startDate: newStart,
+                expiryDate: newExpiry,
+                customerPayout: newCustPayout,
+                agentPayout: newAgentPayout
+            });
+            p.history = historyLog;
+
+            if (supabaseClient) {
+                await supabaseClient.from('policies').update(p).eq('id', id);
+            }
+
+            closeEditCustomerModal();
+            renderExpiringTable();
+            renderCustomerTable();
+            renderFinancialAnalysis();
+            alert('Policy updated successfully!');
+        }
+
+        function toggleSelectAllCustomers(master) {
+            document.querySelectorAll('.customer-checkbox').forEach(cb => cb.checked = master.checked);
+        }
+
+        function exportSelectedCustomersExcel() {
+            const checkedBoxes = document.querySelectorAll('.customer-checkbox:checked');
+            if (checkedBoxes.length === 0) { alert('Select at least one customer.'); return; }
+            const selectedIds = Array.from(checkedBoxes).map(cb => cb.value);
+            const dataToExport = policies.filter(p => selectedIds.includes(p.id));
+
+            const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Customers");
+            XLSX.writeFile(workbook, "PolicyGuard_Export.xlsx");
+        }
+
+        function handleExcelImport(e) {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = async function(evt) {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                
+                for (let row of jsonData) {
+                    const newP = {
+                        id: 'p_' + Date.now() + '_' + Math.random().toString(36).substring(2,5),
+                        agent_email: currentUser.email,
+                        client_name: row['Customer Name'] || row['Name'] || 'Client',
+                        client_phone: String(row['Mobile Number'] || row['Mobile'] || '').trim(),
+                        policy_number: String(row['Policy Number'] || row['Policy'] || '').trim(),
+                        company: row['Company'] || 'General',
+                        type: row['Type'] || 'Motor Insurance',
+                        start_date: row['Start Date'] || '',
+                        expiry: row['Expiry Date'] || new Date().toISOString().split('T')[0],
+                        status: 'Active'
+                    };
+                    if (supabaseClient) await supabaseClient.from('policies').insert([newP]);
+                    policies.push(newP);
+                }
+                renderExpiringTable();
+                renderCustomerTable();
+                renderFinancialAnalysis();
+                alert('Excel Import Complete!');
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function switchView(v) {
+            const isMainAdmin = currentUser && currentUser.email.toLowerCase() === 'minibala33ai@gmail.com';
+            if (v === 'admin' && !isMainAdmin) {
+                alert('Unauthorized access.');
+                return;
+            }
+
+            ['expiring', 'add', 'customers', 'financial', 'whatsapp', 'admin'].forEach(name => {
+                const el = document.getElementById(`view-content-${name}`);
+                if (el) el.classList.toggle('hidden', name !== v);
+            });
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = "nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white";
+            });
+            const activeNav = document.getElementById(`nav-${v}`);
+            if (activeNav) {
+                activeNav.className = "nav-btn w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-sm font-medium bg-sky-600 text-white shadow-md";
+            }
+
+            // Update top header title text based on active view
+            const titles = {
+                'expiring': 'Expiring Policies Radar',
+                'add': 'Add New Policy Record',
+                'customers': 'Customer Vault & Management',
+                'financial': 'Financial Analysis & Payout Reports',
+                'whatsapp': 'WhatsApp Template Hub',
+                'admin': 'Admin Console & User Management'
+            };
+            document.getElementById('view-title').innerText = titles[v] || 'PolicyGuard Dashboard';
+
+            if (isMainAdmin) {
+                document.getElementById('nav-admin').classList.remove('hidden');
+                if (v === 'admin') {
+                    renderAdminAgents();
+                    renderAdminKeys();
+                }
+            } else {
+                document.getElementById('nav-admin').classList.add('hidden');
+            }
+
+            if (v === 'financial') {
+                renderFinancialAnalysis();
+            }
+            if (v === 'whatsapp') {
+                renderWhatsappTemplatesList();
+            }
+        }
+
+        function render() {
+            if (!currentUser) return;
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            document.getElementById('user-name-display').innerText = currentUser.name;
+            document.getElementById('user-role-badge').innerText = (currentUser.role || 'AGENT').toUpperCase();
+            
+            const isMainAdmin = currentUser.email.toLowerCase() === 'minibala33ai@gmail.com';
+            if (isMainAdmin) {
+                document.getElementById('nav-admin').classList.remove('hidden');
+            } else {
+                document.getElementById('nav-admin').classList.add('hidden');
+            }
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
